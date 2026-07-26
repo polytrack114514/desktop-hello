@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -24,6 +25,7 @@ var (
 	procFillRect         = user32.NewProc("FillRect")
 	procBitBlt           = gdi32.NewProc("BitBlt")
 	procCreateFontW      = gdi32.NewProc("CreateFontW")
+	procGetStockObject   = gdi32.NewProc("GetStockObject")
 	procBeginPaint       = user32.NewProc("BeginPaint")
 	procEndPaint         = user32.NewProc("EndPaint")
 	procInvalidateRect   = user32.NewProc("InvalidateRect")
@@ -37,6 +39,8 @@ const (
 	defaultPitch = 0
 	ffDonotcare = 0x04
 	srccopy     = 0x00CC0020
+	systemFont  = 13 // SYSTEM_FONT
+	defaultGuiFont = 17 // DEFAULT_GUI_FONT
 )
 
 // paintStruct Windows PAINTSTRUCT（简化，只需前几字段）
@@ -64,21 +68,8 @@ var (
 )
 
 func initFonts() {
-	fontKey = createFontW(14, "Segoe UI", fwBold)
-	fontX = createFontW(16, "Segoe UI", fwBold)
-}
-
-func createFontW(size int, face string, weight int) uintptr {
-	faceUTF16, _ := syscall.UTF16PtrFromString(face)
-	r, _, _ := procCreateFontW.Call(
-		uintptr(size),               // height
-		0, 0, 0,                     // width, escapement, orientation
-		uintptr(weight),             // weight
-		0, 0, 0, 0, 0, 0, 0, 0,      // italic, underline, ...
-		defaultPitch|ffDonotcare,
-		uintptr(unsafe.Pointer(faceUTF16)),
-	)
-	return r
+	fontKey, _, _ = procGetStockObject.Call(defaultGuiFont)
+	fontX, _, _ = procGetStockObject.Call(defaultGuiFont)
 }
 
 // drawPanel 在 hdc 上把整个面板画到 (0,0)~(panelW,panelH)
@@ -96,7 +87,7 @@ func drawPanel(hdc uintptr, st *KeyState, nowNs int64) {
 
 	// 1) 整面板填充半透明黑色（窗体本身已半透明，这里用纯黑底）
 	hbrBg, _, _ := procCreateSolidBrush.Call(rgb(0, 0, 0))
-	procFillRect.Call(memDC, uintptr(unsafe.Pointer(&rect{0, 0, panelW, panelH})), hbrBg)
+	procFillRect.Call(memDC, uintptr(unsafe.Pointer(&rect{0, 0, int32(panelW), int32(panelH)})), hbrBg)
 	procDeleteObject.Call(hbrBg)
 
 	// 2) 画每个键
@@ -146,18 +137,16 @@ func drawKey(hdc uintptr, k KeyDef, st *KeyState, nowNs int64) {
 }
 
 // computeKeyVisual 计算单键当前缩放与颜色
-// 按下：scale=1.1, color=(255,165,0)
-// 松开 150ms 内：scale 从 1.1 回到 1.0，颜色从橙回灰
+// 按下：scale=1.1, color=主题色
+// 松开 150ms 内：scale 从 1.1 回到 1.0，颜色从主题色回灰
 func computeKeyVisual(vk uint16, down bool, st *KeyState, nowNs int64) (scale float64, r, g, b uint8) {
 	const animMs = 150
+	th := currentTheme()
 	if down {
-		// 按下立即橙 + 放大
-		return 1.1, 255, 165, 0
+		return 1.1, th.Accent[0], th.Accent[1], th.Accent[2]
 	}
-	// 检查是否在松开回弹期
 	tStart, ok := st.animStart[vk]
 	if !ok {
-		// 没动画记录：默认静止
 		return 1.0, 60, 60, 60
 	}
 	elapsedMs := (nowNs - tStart) / int64(1e6)
@@ -165,11 +154,11 @@ func computeKeyVisual(vk uint16, down bool, st *KeyState, nowNs int64) (scale fl
 		delete(st.animStart, vk)
 		return 1.0, 60, 60, 60
 	}
-	t := float64(elapsedMs) / float64(animMs) // 0..1
+	t := float64(elapsedMs) / float64(animMs)
 	scale = 1.1 - 0.1*t
-	r = uint8(255 - (255-60)*t)
-	g = uint8(165 - (165-60)*t)
-	b = uint8(0 + (60-0)*t)
+	r = uint8(float64(th.Accent[0]) - (float64(th.Accent[0])-60)*t)
+	g = uint8(float64(th.Accent[1]) - (float64(th.Accent[1])-60)*t)
+	b = uint8(float64(th.Accent[2]) - (float64(th.Accent[2])-60)*t)
 	return
 }
 
@@ -207,13 +196,61 @@ func drawMouse(hdc uintptr, st *KeyState, nowNs int64) {
 		uintptr(mx+mouseW/2+14), uintptr(my+mouseH/2+40))
 	procSelectObject.Call(hdc, oldMid)
 	procDeleteObject.Call(hbrMid)
+
+	// 点击闪烁动画（300ms 红色波纹，叠加在按键之上）
+	if st.clickAnim != 0 {
+		elapsedMs := (nowNs - st.clickAnimT) / int64(1e6)
+		if elapsedMs > 300 {
+			st.clickAnim = 0
+		} else {
+			t := 1.0 - float64(elapsedMs)/300.0
+			flashR := uint8(255)
+			flashG := uint8(80 * t)
+			flashB := uint8(80 * t)
+			flashColor := [3]uint8{flashR, flashG, flashB}
+			switch st.clickAnim {
+			case 1: // 左键
+				fillRect2(hdc, mx+8, my+8, mx+mouseW/2-2, my+mouseH/2, flashColor)
+			case 2: // 右键
+				fillRect2(hdc, mx+mouseW/2+2, my+8, mx+mouseW-8, my+mouseH/2, flashColor)
+			case 3: // 中键
+				hbrFlash, _, _ := procCreateSolidBrush.Call(rgb(flashColor[0], flashColor[1], flashColor[2]))
+				oldFlash, _, _ := procSelectObject.Call(hdc, hbrFlash)
+				procEllipse.Call(hdc,
+					uintptr(mx+mouseW/2-14), uintptr(my+mouseH/2+8),
+					uintptr(mx+mouseW/2+14), uintptr(my+mouseH/2+40))
+				procSelectObject.Call(hdc, oldFlash)
+				procDeleteObject.Call(hbrFlash)
+			}
+		}
+	}
+
+	// 滚轮方向指示（300ms 淡出）
+	if st.wheelDir != 0 {
+		elapsedMs := (nowNs - st.wheelTime) / int64(1e6)
+		if elapsedMs > 300 {
+			st.wheelDir = 0
+		} else {
+			t := 1.0 - float64(elapsedMs)/300.0
+			c := uint8(255 * t)
+			arrow := "↑"
+			if st.wheelDir < 0 {
+				arrow = "↓"
+			}
+			procSetBkMode.Call(hdc, transp)
+			procSetTextColor.Call(hdc, rgb(c, c, 0))
+			procSelectObject.Call(hdc, fontKey)
+			procSetTextAlign.Call(hdc, taCenter|taBaseline)
+			drawTextCenter(hdc, arrow, mx+mouseW/2, my+mouseH/2+28)
+		}
+	}
 }
 
 func colorButton(down bool, st *KeyState, name string, nowNs int64) [3]uint8 {
+	th := currentTheme()
 	if down {
-		return [3]uint8{255, 165, 0}
+		return th.Accent
 	}
-	// 不做回弹动画，直接返回灰色
 	return [3]uint8{60, 60, 60}
 }
 
@@ -248,7 +285,8 @@ func drawCloseButton(hdc uintptr) {
 
 // drawTextCenter 居中绘制文字（GDI TextOutW 用 TA_CENTER/TA_BASELINE）
 func drawTextCenter(hdc uintptr, s string, x, y int) {
-	ptr, _ := syscall.UTF16PtrFromString(s)
+	buf := utf16Slice(s)
 	procTextOut.Call(hdc, uintptr(x), uintptr(y),
-		uintptr(unsafe.Pointer(ptr)), uintptr(len([]rune(s))))
+		uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)-1))
+	runtime.KeepAlive(buf)
 }

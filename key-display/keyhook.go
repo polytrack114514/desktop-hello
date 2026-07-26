@@ -18,6 +18,7 @@ const (
 	WM_RBUTTONUP   = 0x0205
 	WM_MBUTTONDOWN = 0x0207
 	WM_MBUTTONUP   = 0x0208
+	WM_MOUSEWHEEL  = 0x020A
 
 	WH_KEYBOARD_LL = 13
 	WH_MOUSE_LL    = 14
@@ -55,7 +56,18 @@ var (
 	procUnhook       = user32.NewProc("UnhookWindowsHookEx")
 	procCallNextHook = user32.NewProc("CallNextHookEx")
 	procPostMessage  = user32.NewProc("PostMessageW")
+	procMessageBox   = user32.NewProc("MessageBoxW")
 )
+
+// utf16Ptr 字符串转 UTF16 指针
+func utf16Ptr(s string) (*uint16, error) {
+	return syscall.UTF16PtrFromString(s)
+}
+
+// unsafePtr 把 *uint16 转 uintptr（用于 syscall.Call 参数）
+func unsafePtr(p *uint16) uintptr {
+	return uintptr(unsafe.Pointer(p))
+}
 
 var (
 	mainHwnd    uintptr
@@ -142,6 +154,15 @@ func mouseHookProc(code int, wParam uintptr, lParam uintptr) uintptr {
 			button, down = 2, true
 		case WM_RBUTTONUP:
 			button, down = 2, false
+		case WM_MOUSEWHEEL:
+			ms := (*msLLHook)(unsafe.Pointer(lParam))
+			wheelDelta := int16(ms.MouseData >> 16)
+			if wheelDelta > 0 {
+				button = 3 // 滚轮上
+			} else {
+				button = 4 // 滚轮下
+			}
+			down = true
 		default:
 			got = false
 		}
