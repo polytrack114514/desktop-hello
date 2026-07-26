@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.2"
+const Version = "0.3.3"
 
 // Theme 主题配色
 type Theme struct {
@@ -238,14 +238,14 @@ func getEditText(hwnd, ctrlID uintptr) string {
 }
 
 func createSettingsControls(hwnd uintptr) {
-	createStatic(hwnd, "透明度% (30-100)", 20, 20, 120, 20)
-	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 150, 20, 60, 24, idAlphaEdit)
+	createStatic(hwnd, "透明度%", 20, 20, 80, 20)
+	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 110, 18, 50, 24, idAlphaEdit)
 
-	createStatic(hwnd, "面板大小% (50-100)", 20, 60, 120, 20)
-	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 150, 60, 60, 24, idSizeEdit)
+	createStatic(hwnd, "面板大小%", 20, 60, 80, 20)
+	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 110, 58, 50, 24, idSizeEdit)
 
-	createStatic(hwnd, "主题颜色", 20, 100, 120, 20)
-	hwndThemeCombo = createCombo(hwnd, 150, 100, 80, 24, idThemeCombo)
+	createStatic(hwnd, "主题颜色", 20, 100, 80, 20)
+	hwndThemeCombo = createCombo(hwnd, 110, 98, 80, 24, idThemeCombo)
 
 	createStatic(hwnd, "设置自动保存", 20, 140, 120, 20)
 }
