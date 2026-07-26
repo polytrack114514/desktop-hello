@@ -1,16 +1,21 @@
 package main
 
-func main() {
-	// 初始化字体
-	initFonts()
+import (
+	"runtime"
+)
 
-	// 创建并显示主窗口
+func main() {
+	runtime.LockOSThread()
+
+	loadSettings()
+	initFonts()
+	initIcons()
+
 	hwnd := createMainWindow()
 	if hwnd == 0 {
 		return
 	}
-	procShowWindow.Call(hwnd, 5) // SW_SHOW=5
+	procShowWindow.Call(hwnd, SW_SHOW)
 
-	// 进入消息循环
 	messageLoop()
 }

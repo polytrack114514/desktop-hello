@@ -16,6 +16,7 @@ const (
 	WS_EX_TOPMOST     = 0x00000008
 	WS_EX_TRANSPARENT = 0x00000020
 	WS_EX_TOOLWINDOW  = 0x00000080
+	WS_EX_APPWINDOW   = 0x00040000
 
 	WM_CREATE = 0x0001
 	WM_PAINT  = 0x000F
@@ -24,11 +25,16 @@ const (
 	WM_LBUTTONDOWN_ = 0x0201 // 不复用 keyhook 里的，避免重名；此处仅文档参考
 	WM_NCHITTEST    = 0x0084
 	WM_TIMER        = 0x0113
+	WM_SYSCOMMAND   = 0x0112
+	WM_SETICON       = 0x0080
+	WM_EXITSIZEMOVE  = 0x0232
 	WM_USER_KEYEVENT_LOCAL = WM_USER_KEYEVENT
 	WM_USER_MSEVENT_LOCAL  = WM_USER_MSEVENT
 
 	HTCLIENT    = 1
 	HTCAPTION  = 2
+
+	SC_MOVE = 0xF010
 
 	CW_USEDEFAULT = 0x80000000
 
@@ -86,6 +92,9 @@ var (
 	procKillTimer        = user32.NewProc("KillTimer")
 	procGetSystemMetrics = user32.NewProc("GetSystemMetrics")
 	procShowWindow       = user32.NewProc("ShowWindow")
+	procReleaseCapture   = user32.NewProc("ReleaseCapture")
+	procSendMessage      = user32.NewProc("SendMessageW")
+	procGetWindowRect    = user32.NewProc("GetWindowRect")
 )
 
 var hwndMain uintptr
@@ -95,6 +104,11 @@ type KeyState struct {
 	keys      map[uint16]bool // 当前按下的 VK 码
 	animStart map[uint16]int64 // 松开回弹开始时间（纳秒），存在即动画中
 	left, middle, right bool
+	wheelDir  int    // 0=无, 1=上, -1=下
+	wheelTime int64  // 滚轮事件时间戳（纳秒）
+	// 鼠标点击动画
+	clickAnim    int    // 0=无, 1=左键, 2=右键, 3=中键
+	clickAnimT   int64  // 点击动画开始时间（纳秒）
 }
 
 var state = &KeyState{
@@ -102,19 +116,36 @@ var state = &KeyState{
 	animStart: make(map[uint16]int64),
 }
 
+var lastEscTime int64 // Esc 上次按下时间（纳秒），用于双击退出
+
 // wndProc 窗口过程
 func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_CREATE:
 		hwndMain = hwnd
-		// 半透明 70%
-		procSetLayeredAttr.Call(hwnd, 0, 180, LWA_ALPHA)
+		// 应用设置
+		applyScale()
+		procSetLayeredAttr.Call(hwnd, 0, alphaValue(), LWA_ALPHA)
+		// 设置窗口图标
+		procSendMessage.Call(hwnd, WM_SETICON, 0, appIcon)
+		procSendMessage.Call(hwnd, WM_SETICON, 1, appIconSmall)
+		// 添加托盘图标
+		addTrayIcon(hwnd)
 		// 安装钩子
 		installHooks(hwnd)
 		return 0
 
 	case WM_USER_KEYEVENT:
 		ev := decodeKeyEvent(wParam)
+		// Esc 双击退出
+		if ev.vk == vkEsc && ev.down {
+			now := time.Now().UnixNano()
+			if now-lastEscTime < 500*1e6 { // 500ms 内再按一次
+				procDestroyWindow.Call(hwnd)
+				return 0
+			}
+			lastEscTime = now
+		}
 		applyKey(ev)
 		procInvalidateRect.Call(hwnd, 0, 0)
 		// 有动画时确保定时器在跑
@@ -127,12 +158,23 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		ev := decodeMouseEvent(wParam)
 		applyMouse(ev)
 		procInvalidateRect.Call(hwnd, 0, 0)
+		if state.wheelDir != 0 || state.clickAnim != 0 || len(state.animStart) > 0 {
+			procSetTimer.Call(hwnd, IDT_ANIM, 16, 0)
+		}
+		return 0
+
+	case WM_USER_TRAY:
+		if lParam == 0x0205 { // WM_RBUTTONUP
+			showTrayMenu(hwnd)
+		} else if lParam == 0x0203 { // WM_LBUTTONDBLCLK
+			showSettingsWindow()
+		}
 		return 0
 
 	case WM_TIMER:
 		if wParam == IDT_ANIM {
 			procInvalidateRect.Call(hwnd, 0, 0)
-			if len(state.animStart) == 0 {
+			if len(state.animStart) == 0 && state.wheelDir == 0 && state.clickAnim == 0 {
 				procKillTimer.Call(hwnd, IDT_ANIM)
 			}
 		}
@@ -146,27 +188,30 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case WM_NCHITTEST:
-		// 鼠标位置
-		x := int16(lParam & 0xFFFF)
-		y := int16(lParam >> 16)
-		// 转换为窗口坐标
-		wx := int(x) - windowX
-		wy := int(y) - windowY
-		// × 按钮区域：可点
-		if wx >= panelW-38 && wx <= panelW-8 && wy >= 6 && wy <= 36 {
-			return HTCLIENT
-		}
-		// 其它区域：作为标题栏拖动
-		return HTCAPTION
+		return HTCLIENT
 
 	case WM_LBUTTONDOWN_:
-		// 仅 ×按钮区域会进到这（其它被 HTCAPTION 接管）
-		procDefWindowProc.Call(hwnd, uintptr(msg), wParam, lParam)
-		// 触发关闭
-		procDestroyWindow.Call(hwnd)
+		x := int16(lParam & 0xFFFF)
+		y := int16(lParam >> 16)
+		if int(x) >= panelW-38 && int(x) <= panelW-8 && int(y) >= 6 && int(y) <= 36 {
+			procDestroyWindow.Call(hwnd)
+			return 0
+		}
+		procReleaseCapture.Call()
+		procSendMessage.Call(hwnd, WM_SYSCOMMAND, SC_MOVE|HTCAPTION, 0)
+		return 0
+
+	case WM_EXITSIZEMOVE:
+		// 拖动结束后保存窗口位置
+		var rc rect
+		procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&rc)))
+		settings.WinX = int(rc.Left)
+		settings.WinY = int(rc.Top)
+		saveSettings()
 		return 0
 
 	case WM_DESTROY:
+		removeTrayIcon(hwnd)
 		uninstallHooks()
 		procPostQuitMessage.Call(0)
 		return 0
@@ -192,10 +237,28 @@ func applyMouse(ev mouseEvent) {
 	switch ev.button {
 	case 0:
 		state.left = ev.down
+		if ev.down {
+			state.clickAnim = 1
+			state.clickAnimT = time.Now().UnixNano()
+		}
 	case 1:
 		state.middle = ev.down
+		if ev.down {
+			state.clickAnim = 3
+			state.clickAnimT = time.Now().UnixNano()
+		}
 	case 2:
 		state.right = ev.down
+		if ev.down {
+			state.clickAnim = 2
+			state.clickAnimT = time.Now().UnixNano()
+		}
+	case 3: // 滚轮上
+		state.wheelDir = 1
+		state.wheelTime = time.Now().UnixNano()
+	case 4: // 滚轮下
+		state.wheelDir = -1
+		state.wheelTime = time.Now().UnixNano()
 	}
 }
 
@@ -221,14 +284,19 @@ func createMainWindow() uintptr {
 	}
 	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
 
-	// 初始位置：屏幕底部居中
+	// 初始位置：优先恢复上次保存的位置，否则屏幕底部居中
 	sw, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 	sh, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
-	windowX = int(sw) - panelW
-	windowX = windowX / 2
-	windowY = int(sh) - panelH - 40
+	if settings.WinX >= 0 && settings.WinY >= 0 {
+		// 限制在屏幕范围内（避免跑到屏幕外看不见）
+		windowX = clampInt(settings.WinX, 0, int(sw)-panelW)
+		windowY = clampInt(settings.WinY, 0, int(sh)-panelH)
+	} else {
+		windowX = (int(sw) - panelW) / 2
+		windowY = int(sh) - panelH - 40
+	}
 
-	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW)
+	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_APPWINDOW)
 	style := uintptr(WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN)
 
 	r1, _, _ := procCreateWindowEx.Call(

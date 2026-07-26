@@ -46,21 +46,58 @@ type KeyDef struct {
 }
 
 // keyMap 键盘所有键定义，面板原点 (0,0) 即面板左上角
-// 面板宽 720 高 220，键 40x40，间距 4
 var keyMap = buildKeyMap()
 
+// 基准尺寸（scale=1.0）
 const (
-	keySize = 40
-	keyGap  = 4
-	originX = 8
-	originY = 8
-	panelW  = 720
-	panelH  = 220
-	mouseX  = panelW - 8 - 100 // 鼠标示意左上角 X
-	mouseY  = 8
-	mouseW  = 100
-	mouseH  = 170
+	baseKeySize = 40
+	baseKeyGap  = 4
+	baseOriginX = 8
+	baseOriginY = 8
+	basePanelW  = 860
+	basePanelH  = 280
+	baseMouseX  = 744
+	baseMouseY  = 55
+	baseMouseW  = 100
+	baseMouseH  = 170
 )
+
+// 当前实际尺寸（随 scale 变化）
+var (
+	keySize = baseKeySize
+	keyGap  = baseKeyGap
+	originX = baseOriginX
+	originY = baseOriginY
+	panelW  = basePanelW
+	panelH  = basePanelH
+	mouseX  = baseMouseX
+	mouseY  = baseMouseY
+	mouseW  = baseMouseW
+	mouseH  = baseMouseH
+)
+
+func imax(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// applyScale 根据当前 settings.Scale 重算所有布局变量并重建 keyMap
+func applyScale() {
+	s := scaleFloat()
+	keySize = imax(8, int(float64(baseKeySize)*s))
+	keyGap = imax(1, int(float64(baseKeyGap)*s))
+	originX = int(float64(baseOriginX) * s)
+	originY = int(float64(baseOriginY) * s)
+	panelW = int(float64(basePanelW) * s)
+	panelH = int(float64(basePanelH) * s)
+	mouseX = int(float64(baseMouseX) * s)
+	mouseY = int(float64(baseMouseY) * s)
+	mouseW = int(float64(baseMouseW) * s)
+	mouseH = int(float64(baseMouseH) * s)
+	keyMap = buildKeyMap()
+}
 
 func buildKeyMap() []KeyDef {
 	var keys []KeyDef
@@ -88,10 +125,10 @@ func buildKeyMap() []KeyDef {
 		w     int
 	}{
 		{vkOem3, "`", keySize},
-		{0x30, "1", keySize}, {0x31, "2", keySize}, {0x32, "3", keySize},
-		{0x33, "4", keySize}, {0x34, "5", keySize}, {0x35, "6", keySize},
-		{0x36, "7", keySize}, {0x37, "8", keySize}, {0x38, "9", keySize},
-		{0x39, "0", keySize},
+		{0x31, "1", keySize}, {0x32, "2", keySize}, {0x33, "3", keySize},
+		{0x34, "4", keySize}, {0x35, "5", keySize}, {0x36, "6", keySize},
+		{0x37, "7", keySize}, {0x38, "8", keySize}, {0x39, "9", keySize},
+		{0x30, "0", keySize},
 		{vkOemMinus, "-", keySize}, {vkOemPlus, "=", keySize},
 		{vkBackspace, "←", 88},
 	}
