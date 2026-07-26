@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.4"
+const Version = "0.3.5"
 
 // Theme 主题配色
 type Theme struct {
@@ -248,6 +248,7 @@ func createSettingsControls(hwnd uintptr) {
 	hwndThemeCombo = createCombo(hwnd, 60, 98, 100, 24, idThemeCombo)
 
 	createStatic(hwnd, "设置自动保存", 10, 140, 120, 20)
+	createStatic(hwnd, "版本 v"+Version, 160, 140, 100, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
