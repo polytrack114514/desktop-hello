@@ -197,34 +197,6 @@ func drawMouse(hdc uintptr, st *KeyState, nowNs int64) {
 	procSelectObject.Call(hdc, oldMid)
 	procDeleteObject.Call(hbrMid)
 
-	// 点击闪烁动画（300ms 红色波纹，叠加在按键之上）
-	if st.clickAnim != 0 {
-		elapsedMs := (nowNs - st.clickAnimT) / int64(1e6)
-		if elapsedMs > 300 {
-			st.clickAnim = 0
-		} else {
-			t := 1.0 - float64(elapsedMs)/300.0
-			flashR := uint8(255)
-			flashG := uint8(80 * t)
-			flashB := uint8(80 * t)
-			flashColor := [3]uint8{flashR, flashG, flashB}
-			switch st.clickAnim {
-			case 1: // 左键
-				fillRect2(hdc, mx+8, my+8, mx+mouseW/2-2, my+mouseH/2, flashColor)
-			case 2: // 右键
-				fillRect2(hdc, mx+mouseW/2+2, my+8, mx+mouseW-8, my+mouseH/2, flashColor)
-			case 3: // 中键
-				hbrFlash, _, _ := procCreateSolidBrush.Call(rgb(flashColor[0], flashColor[1], flashColor[2]))
-				oldFlash, _, _ := procSelectObject.Call(hdc, hbrFlash)
-				procEllipse.Call(hdc,
-					uintptr(mx+mouseW/2-14), uintptr(my+mouseH/2+8),
-					uintptr(mx+mouseW/2+14), uintptr(my+mouseH/2+40))
-				procSelectObject.Call(hdc, oldFlash)
-				procDeleteObject.Call(hbrFlash)
-			}
-		}
-	}
-
 	// 滚轮方向指示（300ms 淡出）
 	if st.wheelDir != 0 {
 		elapsedMs := (nowNs - st.wheelTime) / int64(1e6)

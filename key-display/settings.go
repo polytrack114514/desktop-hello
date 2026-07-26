@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.0"
+const Version = "0.3.2"
 
 // Theme 主题配色
 type Theme struct {
@@ -39,16 +39,12 @@ type Settings struct {
 	Alpha   int // 透明度百分比 30-100
 	Scale   int // 面板大小百分比 50-100
 	Theme   int // 主题索引
-	WinX    int // 窗口位置 X
-	WinY    int // 窗口位置 Y
 }
 
 var settings = Settings{
 	Alpha: 70,
 	Scale: 100,
 	Theme: 0,
-	WinX:  -1,
-	WinY:  -1,
 }
 
 // alphaValue 把百分比(30-100)转成 Windows 透明度值(0-255)
@@ -103,14 +99,6 @@ func loadSettings() {
 			if n, err := strconv.Atoi(val); err == nil {
 				settings.Theme = clampInt(n, 0, len(themes)-1)
 			}
-		case "winx":
-			if n, err := strconv.Atoi(val); err == nil {
-				settings.WinX = n
-			}
-		case "winy":
-			if n, err := strconv.Atoi(val); err == nil {
-				settings.WinY = n
-			}
 		}
 	}
 }
@@ -118,9 +106,7 @@ func loadSettings() {
 func saveSettings() {
 	data := "alpha=" + strconv.Itoa(settings.Alpha) +
 		"\nscale=" + strconv.Itoa(settings.Scale) +
-		"\ntheme=" + strconv.Itoa(settings.Theme) +
-		"\nwinx=" + strconv.Itoa(settings.WinX) +
-		"\nwiny=" + strconv.Itoa(settings.WinY) + "\n"
+		"\ntheme=" + strconv.Itoa(settings.Theme) + "\n"
 	os.WriteFile(settingsFilePath(), []byte(data), 0644)
 }
 
@@ -261,7 +247,7 @@ func createSettingsControls(hwnd uintptr) {
 	createStatic(hwnd, "主题颜色", 20, 100, 120, 20)
 	hwndThemeCombo = createCombo(hwnd, 150, 100, 80, 24, idThemeCombo)
 
-	createStatic(hwnd, "设置自动保存，拖动面板后位置也会保存", 20, 140, 220, 20)
+	createStatic(hwnd, "设置自动保存", 20, 140, 120, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {

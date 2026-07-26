@@ -27,7 +27,6 @@ const (
 	WM_TIMER        = 0x0113
 	WM_SYSCOMMAND   = 0x0112
 	WM_SETICON       = 0x0080
-	WM_EXITSIZEMOVE  = 0x0232
 	WM_USER_KEYEVENT_LOCAL = WM_USER_KEYEVENT
 	WM_USER_MSEVENT_LOCAL  = WM_USER_MSEVENT
 
@@ -94,7 +93,6 @@ var (
 	procShowWindow       = user32.NewProc("ShowWindow")
 	procReleaseCapture   = user32.NewProc("ReleaseCapture")
 	procSendMessage      = user32.NewProc("SendMessageW")
-	procGetWindowRect    = user32.NewProc("GetWindowRect")
 )
 
 var hwndMain uintptr
@@ -106,9 +104,6 @@ type KeyState struct {
 	left, middle, right bool
 	wheelDir  int    // 0=无, 1=上, -1=下
 	wheelTime int64  // 滚轮事件时间戳（纳秒）
-	// 鼠标点击动画
-	clickAnim    int    // 0=无, 1=左键, 2=右键, 3=中键
-	clickAnimT   int64  // 点击动画开始时间（纳秒）
 }
 
 var state = &KeyState{
@@ -158,7 +153,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		ev := decodeMouseEvent(wParam)
 		applyMouse(ev)
 		procInvalidateRect.Call(hwnd, 0, 0)
-		if state.wheelDir != 0 || state.clickAnim != 0 || len(state.animStart) > 0 {
+		if state.wheelDir != 0 || len(state.animStart) > 0 {
 			procSetTimer.Call(hwnd, IDT_ANIM, 16, 0)
 		}
 		return 0
@@ -174,7 +169,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_TIMER:
 		if wParam == IDT_ANIM {
 			procInvalidateRect.Call(hwnd, 0, 0)
-			if len(state.animStart) == 0 && state.wheelDir == 0 && state.clickAnim == 0 {
+			if len(state.animStart) == 0 && state.wheelDir == 0 {
 				procKillTimer.Call(hwnd, IDT_ANIM)
 			}
 		}
@@ -199,15 +194,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		procReleaseCapture.Call()
 		procSendMessage.Call(hwnd, WM_SYSCOMMAND, SC_MOVE|HTCAPTION, 0)
-		return 0
-
-	case WM_EXITSIZEMOVE:
-		// 拖动结束后保存窗口位置
-		var rc rect
-		procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&rc)))
-		settings.WinX = int(rc.Left)
-		settings.WinY = int(rc.Top)
-		saveSettings()
 		return 0
 
 	case WM_DESTROY:
@@ -237,22 +223,10 @@ func applyMouse(ev mouseEvent) {
 	switch ev.button {
 	case 0:
 		state.left = ev.down
-		if ev.down {
-			state.clickAnim = 1
-			state.clickAnimT = time.Now().UnixNano()
-		}
 	case 1:
 		state.middle = ev.down
-		if ev.down {
-			state.clickAnim = 3
-			state.clickAnimT = time.Now().UnixNano()
-		}
 	case 2:
 		state.right = ev.down
-		if ev.down {
-			state.clickAnim = 2
-			state.clickAnimT = time.Now().UnixNano()
-		}
 	case 3: // 滚轮上
 		state.wheelDir = 1
 		state.wheelTime = time.Now().UnixNano()
@@ -284,17 +258,11 @@ func createMainWindow() uintptr {
 	}
 	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
 
-	// 初始位置：优先恢复上次保存的位置，否则屏幕底部居中
+	// 初始位置：屏幕底部居中
 	sw, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 	sh, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
-	if settings.WinX >= 0 && settings.WinY >= 0 {
-		// 限制在屏幕范围内（避免跑到屏幕外看不见）
-		windowX = clampInt(settings.WinX, 0, int(sw)-panelW)
-		windowY = clampInt(settings.WinY, 0, int(sh)-panelH)
-	} else {
-		windowX = (int(sw) - panelW) / 2
-		windowY = int(sh) - panelH - 40
-	}
+	windowX = (int(sw) - panelW) / 2
+	windowY = int(sh) - panelH - 40
 
 	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_APPWINDOW)
 	style := uintptr(WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN)
