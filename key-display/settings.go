@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.5"
+const Version = "0.3.6"
 
 // Theme 主题配色
 type Theme struct {
@@ -238,17 +238,17 @@ func getEditText(hwnd, ctrlID uintptr) string {
 }
 
 func createSettingsControls(hwnd uintptr) {
-	createStatic(hwnd, "透明度", 10, 20, 60, 20)
-	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 80, 18, 50, 24, idAlphaEdit)
+	createStatic(hwnd, "透明度", 20, 20, 60, 20)
+	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 85, 18, 50, 24, idAlphaEdit)
 
-	createStatic(hwnd, "面板大小", 10, 60, 60, 20)
-	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 80, 58, 50, 24, idSizeEdit)
+	createStatic(hwnd, "面板大小", 20, 55, 60, 20)
+	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 85, 53, 50, 24, idSizeEdit)
 
-	createStatic(hwnd, "主题", 10, 100, 40, 20)
-	hwndThemeCombo = createCombo(hwnd, 60, 98, 100, 24, idThemeCombo)
+	createStatic(hwnd, "主题颜色", 20, 90, 60, 20)
+	hwndThemeCombo = createCombo(hwnd, 85, 88, 120, 24, idThemeCombo)
 
-	createStatic(hwnd, "设置自动保存", 10, 140, 120, 20)
-	createStatic(hwnd, "版本 v"+Version, 160, 140, 100, 20)
+	createStatic(hwnd, "设置自动保存", 20, 130, 120, 20)
+	createStatic(hwnd, "版本 v"+Version, 180, 130, 80, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
@@ -294,6 +294,8 @@ func createCombo(parent uintptr, x, y, w, h int, id uintptr) uintptr {
 		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(&item[0])))
 		runtime.KeepAlive(item)
 	}
+	// 设置下拉可见项数
+	procSendMessage.Call(hwnd, 0x0161, uintptr(len(themes)), 0)
 	// 选中当前主题
 	procSendMessage.Call(hwnd, 0x014E, uintptr(settings.Theme), 0)
 	return hwnd
@@ -333,7 +335,7 @@ func createSettingsWindow() uintptr {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(title)),
 		style,
-		0, 0, 280, 200,
+		0, 0, 280, 180,
 		0, 0, hMod, 0,
 	)
 	return r
