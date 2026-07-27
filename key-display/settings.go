@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.4.0"
+const Version = "0.4.1"
 
 // Theme 主题配色
 type Theme struct {
@@ -128,6 +128,7 @@ var (
 	hwndAlphaEdit  uintptr
 	hwndSizeEdit   uintptr
 	hwndThemeCombo uintptr
+	controlsCreated bool
 )
 
 const (
@@ -137,8 +138,8 @@ const (
 )
 
 const (
-	cbsDropdownlist = 0x0003
-	cbsHasStrings   = 0x0040
+	cbsDropdown = 0x0002
+	cbsHasStrings = 0x0040
 )
 
 const (
@@ -148,6 +149,7 @@ const (
 	wsChild       = 0x40000000
 	wsVisible     = 0x10000000
 	esNumber      = 0x0020
+	esLeft        = 0x0000
 	mfSeparator   = 0x00000800
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
@@ -185,7 +187,10 @@ func utf16Slice(s string) []uint16 {
 func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_CREATE:
-		createSettingsControls(hwnd)
+		if !controlsCreated {
+			createSettingsControls(hwnd)
+			controlsCreated = true
+		}
 		return 0
 
 	case WM_COMMAND_:
@@ -282,7 +287,7 @@ func createCombo(parent uintptr, id uintptr, x, y, w, h int) uintptr {
 	hwnd, _, _ := procCreateWindowEx.Call(0,
 		uintptr(unsafe.Pointer(className)),
 		0,
-		uintptr(wsChild|wsVisible|cbsDropdownlist|cbsHasStrings),
+		uintptr(wsChild|wsVisible|cbsDropdown|cbsHasStrings),
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h+120),
 		parent, id, 0, 0)
 	for _, t := range themes {
