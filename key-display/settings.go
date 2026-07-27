@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.7"
+const Version = "0.3.8"
 
 // Theme 主题配色
 type Theme struct {
@@ -138,6 +138,7 @@ const (
 
 const (
 	cbsDropdownlist = 0x0003
+	cbsHasStrings   = 0x0040
 )
 
 const (
@@ -239,10 +240,10 @@ func getEditText(hwnd, ctrlID uintptr) string {
 
 func createSettingsControls(hwnd uintptr) {
 	createStatic(hwnd, "透明度", 20, 20, 60, 20)
-	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 85, 18, 50, 24, idAlphaEdit)
+	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 85, 18, 60, 24, idAlphaEdit)
 
 	createStatic(hwnd, "面板大小", 20, 55, 60, 20)
-	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 85, 53, 50, 24, idSizeEdit)
+	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 85, 53, 60, 24, idSizeEdit)
 
 	createStatic(hwnd, "主题颜色", 20, 90, 60, 20)
 	hwndThemeCombo = createCombo(hwnd, 85, 88, 120, 24, idThemeCombo)
@@ -284,19 +285,16 @@ func createCombo(parent uintptr, x, y, w, h int, id uintptr) uintptr {
 	hwnd, _, _ := procCreateWindowEx.Call(0,
 		uintptr(unsafe.Pointer(&comboClass[0])),
 		0,
-		uintptr(wsChild|wsVisible|cbsDropdownlist),
-		uintptr(x), uintptr(y), uintptr(w), uintptr(h+100),
+		uintptr(wsChild|wsVisible|cbsDropdownlist|cbsHasStrings),
+		uintptr(x), uintptr(y), uintptr(w), uintptr(h+120),
 		parent, id, 0, 0)
 	runtime.KeepAlive(comboClass)
-	// 填充选项
 	for _, t := range themes {
 		item := utf16Slice(t.Name)
 		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(&item[0])))
 		runtime.KeepAlive(item)
 	}
-	// 设置下拉可见项数
 	procSendMessage.Call(hwnd, 0x0161, uintptr(len(themes)), 0)
-	// 选中当前主题
 	procSendMessage.Call(hwnd, 0x014E, uintptr(settings.Theme), 0)
 	return hwnd
 }
