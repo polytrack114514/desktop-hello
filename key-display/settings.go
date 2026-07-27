@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.8"
+const Version = "0.3.9"
 
 // Theme 主题配色
 type Theme struct {
@@ -240,63 +240,63 @@ func getEditText(hwnd, ctrlID uintptr) string {
 
 func createSettingsControls(hwnd uintptr) {
 	createStatic(hwnd, "透明度", 20, 20, 60, 20)
-	hwndAlphaEdit = createEdit(hwnd, strconv.Itoa(settings.Alpha), 85, 18, 60, 24, idAlphaEdit)
+	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 85, 18, 60, 24)
+	setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
 
 	createStatic(hwnd, "面板大小", 20, 55, 60, 20)
-	hwndSizeEdit = createEdit(hwnd, strconv.Itoa(settings.Scale), 85, 53, 60, 24, idSizeEdit)
+	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 85, 53, 60, 24)
+	setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
 
 	createStatic(hwnd, "主题颜色", 20, 90, 60, 20)
-	hwndThemeCombo = createCombo(hwnd, 85, 88, 120, 24, idThemeCombo)
+	hwndThemeCombo = createCombo(hwnd, idThemeCombo, 85, 88, 120, 24)
 
 	createStatic(hwnd, "设置自动保存", 20, 130, 120, 20)
 	createStatic(hwnd, "版本 v"+Version, 180, 130, 80, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
-	staticClass := utf16Slice("static")
-	txt := utf16Slice(text)
+	className, _ := syscall.UTF16PtrFromString("static")
+	title, _ := syscall.UTF16PtrFromString(text)
 	hwnd, _, _ := procCreateWindowEx.Call(0,
-		uintptr(unsafe.Pointer(&staticClass[0])),
-		uintptr(unsafe.Pointer(&txt[0])),
+		uintptr(unsafe.Pointer(className)),
+		uintptr(unsafe.Pointer(title)),
 		uintptr(wsChild|wsVisible),
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		parent, 0, 0, 0)
-	runtime.KeepAlive(staticClass)
-	runtime.KeepAlive(txt)
 	return hwnd
 }
 
-func createEdit(parent uintptr, text string, x, y, w, h int, id uintptr) uintptr {
-	editClass := utf16Slice("edit")
-	txt := utf16Slice(text)
+func createEdit(parent uintptr, id uintptr, x, y, w, h int) uintptr {
+	className, _ := syscall.UTF16PtrFromString("edit")
 	hwnd, _, _ := procCreateWindowEx.Call(0,
-		uintptr(unsafe.Pointer(&editClass[0])),
-		uintptr(unsafe.Pointer(&txt[0])),
+		uintptr(unsafe.Pointer(className)),
+		0,
 		uintptr(wsChild|wsVisible|esNumber),
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		parent, id, 0, 0)
-	runtime.KeepAlive(editClass)
-	runtime.KeepAlive(txt)
 	return hwnd
 }
 
-func createCombo(parent uintptr, x, y, w, h int, id uintptr) uintptr {
-	comboClass := utf16Slice("combobox")
+func createCombo(parent uintptr, id uintptr, x, y, w, h int) uintptr {
+	className, _ := syscall.UTF16PtrFromString("combobox")
 	hwnd, _, _ := procCreateWindowEx.Call(0,
-		uintptr(unsafe.Pointer(&comboClass[0])),
+		uintptr(unsafe.Pointer(className)),
 		0,
 		uintptr(wsChild|wsVisible|cbsDropdownlist|cbsHasStrings),
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h+120),
 		parent, id, 0, 0)
-	runtime.KeepAlive(comboClass)
 	for _, t := range themes {
-		item := utf16Slice(t.Name)
-		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(&item[0])))
-		runtime.KeepAlive(item)
+		title, _ := syscall.UTF16PtrFromString(t.Name)
+		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(title)))
 	}
 	procSendMessage.Call(hwnd, 0x0161, uintptr(len(themes)), 0)
 	procSendMessage.Call(hwnd, 0x014E, uintptr(settings.Theme), 0)
 	return hwnd
+}
+
+func setWindowText(hwnd uintptr, text string) {
+	title, _ := syscall.UTF16PtrFromString(text)
+	procSetWindowText.Call(hwnd, uintptr(unsafe.Pointer(title)))
 }
 
 func resizeMainWindow() {
