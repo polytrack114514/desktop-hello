@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.9"
+const Version = "0.4.0"
 
 // Theme 主题配色
 type Theme struct {
@@ -240,11 +240,11 @@ func getEditText(hwnd, ctrlID uintptr) string {
 
 func createSettingsControls(hwnd uintptr) {
 	createStatic(hwnd, "透明度", 20, 20, 60, 20)
-	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 85, 18, 60, 24)
+	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 85, 18, 80, 24)
 	setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
 
 	createStatic(hwnd, "面板大小", 20, 55, 60, 20)
-	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 85, 53, 60, 24)
+	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 85, 53, 80, 24)
 	setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
 
 	createStatic(hwnd, "主题颜色", 20, 90, 60, 20)
