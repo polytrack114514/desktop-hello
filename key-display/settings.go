@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.3.6"
+const Version = "0.3.7"
 
 // Theme 主题配色
 type Theme struct {
@@ -335,7 +335,7 @@ func createSettingsWindow() uintptr {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(title)),
 		style,
-		0, 0, 280, 180,
+		0, 0, 280, 220,
 		0, 0, hMod, 0,
 	)
 	return r
