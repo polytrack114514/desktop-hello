@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.4.1"
+const Version = "0.4.2"
 
 // Theme 主题配色
 type Theme struct {
@@ -148,7 +148,7 @@ const (
 	wsSysMenu     = 0x00080000
 	wsChild       = 0x40000000
 	wsVisible     = 0x10000000
-	esNumber      = 0x0020
+	esNumber      = 0x2000
 	esLeft        = 0x0000
 	mfSeparator   = 0x00000800
 	tpmRightButton = 0x0002
