@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.4.2"
+const Version = "0.4.3"
 
 // Theme 主题配色
 type Theme struct {
@@ -221,11 +221,15 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				}
 			}
 		}
-		if notify == CBN_SELCHANGE && ctrlID == idThemeCombo {
-			idx, _, _ := procSendMessage.Call(hwndThemeCombo, 0x0147, 0, 0)
-			settings.Theme = int(idx)
-			saveSettings()
-			procInvalidateRect.Call(hwndMain, 0, 0)
+		if notify == CBN_SELCHANGE {
+			if lParam == hwndThemeCombo {
+				idx, _, _ := procSendMessage.Call(hwndThemeCombo, 0x0147, 0, 0)
+				if idx >= 0 && int(idx) < len(themes) {
+					settings.Theme = int(idx)
+					saveSettings()
+					procInvalidateRect.Call(hwndMain, 0, 0)
+				}
+			}
 		}
 		return 0
 
@@ -255,8 +259,9 @@ func createSettingsControls(hwnd uintptr) {
 	createStatic(hwnd, "主题颜色", 20, 90, 60, 20)
 	hwndThemeCombo = createCombo(hwnd, idThemeCombo, 85, 88, 120, 24)
 
-	createStatic(hwnd, "设置自动保存", 20, 130, 120, 20)
-	createStatic(hwnd, "版本 v"+Version, 180, 130, 80, 20)
+	createStatic(hwnd, "当前主题: "+themes[settings.Theme].Name, 20, 120, 150, 20)
+	createStatic(hwnd, "设置自动保存", 20, 145, 120, 20)
+	createStatic(hwnd, "版本 v"+Version, 180, 145, 80, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
