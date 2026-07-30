@@ -10,9 +10,9 @@ import (
 	"unsafe"
 )
 
-const Version = "0.4.4"
+const Version = "0.5.0"
 
-// Theme 主题配色
+// Theme 主题配色（仅用默认橙色主题）
 type Theme struct {
 	Name   string
 	Accent [3]uint8 // 按键按下时的颜色
@@ -22,29 +22,20 @@ type Theme struct {
 
 var themes = []Theme{
 	{Name: "橙色", Accent: [3]uint8{255, 165, 0}, KeyOn: [3]uint8{255, 255, 255}, KeyOff: [3]uint8{220, 220, 220}},
-	{Name: "蓝色", Accent: [3]uint8{0, 120, 215}, KeyOn: [3]uint8{255, 255, 255}, KeyOff: [3]uint8{220, 220, 220}},
-	{Name: "绿色", Accent: [3]uint8{0, 200, 83}, KeyOn: [3]uint8{255, 255, 255}, KeyOff: [3]uint8{220, 220, 220}},
-	{Name: "紫色", Accent: [3]uint8{156, 39, 176}, KeyOn: [3]uint8{255, 255, 255}, KeyOff: [3]uint8{220, 220, 220}},
-	{Name: "红色", Accent: [3]uint8{244, 67, 54}, KeyOn: [3]uint8{255, 255, 255}, KeyOff: [3]uint8{220, 220, 220}},
 }
 
 func currentTheme() Theme {
-	if settings.Theme >= 0 && settings.Theme < len(themes) {
-		return themes[settings.Theme]
-	}
 	return themes[0]
 }
 
 type Settings struct {
-	Alpha   int // 透明度百分比 30-100
-	Scale   int // 面板大小百分比 50-100
-	Theme   int // 主题索引
+	Alpha int // 透明度百分比 30-100
+	Scale int // 面板大小百分比 50-100
 }
 
 var settings = Settings{
 	Alpha: 70,
 	Scale: 100,
-	Theme: 0,
 }
 
 // alphaValue 把百分比(30-100)转成 Windows 透明度值(0-255)
@@ -95,18 +86,13 @@ func loadSettings() {
 			if n, err := strconv.Atoi(val); err == nil {
 				settings.Scale = clampInt(n, 50, 100)
 			}
-		case "theme":
-			if n, err := strconv.Atoi(val); err == nil {
-				settings.Theme = clampInt(n, 0, len(themes)-1)
-			}
 		}
 	}
 }
 
 func saveSettings() {
 	data := "alpha=" + strconv.Itoa(settings.Alpha) +
-		"\nscale=" + strconv.Itoa(settings.Scale) +
-		"\ntheme=" + strconv.Itoa(settings.Theme) + "\n"
+		"\nscale=" + strconv.Itoa(settings.Scale) + "\n"
 	os.WriteFile(settingsFilePath(), []byte(data), 0644)
 }
 
@@ -127,19 +113,12 @@ var (
 	hwndSettings   uintptr
 	hwndAlphaEdit  uintptr
 	hwndSizeEdit   uintptr
-	hwndThemeCombo uintptr
 	controlsCreated bool
 )
 
 const (
 	idAlphaEdit  = 1001
 	idSizeEdit   = 1002
-	idThemeCombo = 1003
-)
-
-const (
-	cbsDropdown = 0x0002
-	cbsHasStrings = 0x0040
 )
 
 const (
@@ -149,7 +128,6 @@ const (
 	wsChild       = 0x40000000
 	wsVisible     = 0x10000000
 	esNumber      = 0x2000
-	esLeft        = 0x0000
 	mfSeparator   = 0x00000800
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
@@ -158,7 +136,6 @@ const (
 const WM_USER_TRAY = 0x0400 + 3
 const WM_COMMAND_ = 0x0111
 const EN_CHANGE = 0x0300
-const CBN_SELCHANGE = 1
 
 const (
 	cmdSettings = 2001
@@ -221,16 +198,6 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				}
 			}
 		}
-		if notify == CBN_SELCHANGE {
-			if lParam == hwndThemeCombo {
-				idx, _, _ := procSendMessage.Call(hwndThemeCombo, 0x0147, 0, 0)
-				if idx >= 0 && int(idx) < len(themes) {
-					settings.Theme = int(idx)
-					saveSettings()
-					procInvalidateRect.Call(hwndMain, 0, 0)
-				}
-			}
-		}
 		return 0
 
 	case WM_CLOSE:
@@ -256,12 +223,8 @@ func createSettingsControls(hwnd uintptr) {
 	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 85, 53, 80, 24)
 	setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
 
-	createStatic(hwnd, "主题颜色", 20, 90, 60, 20)
-	hwndThemeCombo = createCombo(hwnd, idThemeCombo, 85, 88, 120, 24)
-
-	createStatic(hwnd, "当前主题: "+themes[settings.Theme].Name, 20, 120, 150, 20)
-	createStatic(hwnd, "设置自动保存", 20, 145, 120, 20)
-	createStatic(hwnd, "版本 v"+Version, 180, 145, 80, 20)
+	createStatic(hwnd, "设置自动保存", 20, 90, 120, 20)
+	createStatic(hwnd, "版本 v"+Version, 180, 90, 80, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
@@ -284,28 +247,6 @@ func createEdit(parent uintptr, id uintptr, x, y, w, h int) uintptr {
 		uintptr(wsChild|wsVisible|esNumber),
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		parent, id, 0, 0)
-	return hwnd
-}
-
-func createCombo(parent uintptr, id uintptr, x, y, w, h int) uintptr {
-	className, _ := syscall.UTF16PtrFromString("combobox")
-	hwnd, _, _ := procCreateWindowEx.Call(0,
-		uintptr(unsafe.Pointer(className)),
-		0,
-		uintptr(wsChild|wsVisible|cbsDropdown|cbsHasStrings),
-		uintptr(x), uintptr(y), uintptr(w), uintptr(h+150),
-		parent, id, 0, 0)
-	// 先清空
-	procSendMessage.Call(hwnd, 0x014B, 0, 0) // CB_RESETCONTENT
-	// 添加选项 - 用变量保存指针防止 GC 回收
-	items := make([][]uint16, len(themes))
-	for i, t := range themes {
-		items[i] = utf16Slice(t.Name)
-		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(&items[i][0])))
-	}
-	runtime.KeepAlive(items)
-	// 选中当前主题
-	procSendMessage.Call(hwnd, 0x014E, uintptr(settings.Theme), 0)
 	return hwnd
 }
 
@@ -348,7 +289,7 @@ func createSettingsWindow() uintptr {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(title)),
 		style,
-		0, 0, 280, 220,
+		0, 0, 280, 160,
 		0, 0, hMod, 0,
 	)
 	return r
@@ -362,7 +303,7 @@ func showSettingsWindow() {
 		sw, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 		sh, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
 		x := (int(sw) - 280) / 2
-		y := (int(sh) - 200) / 2
+		y := (int(sh) - 160) / 2
 		procSetWindowPos.Call(hwndSettings, 0,
 			uintptr(x), uintptr(y),
 			0, 0, 0x0001)
