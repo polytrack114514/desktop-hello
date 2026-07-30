@@ -85,8 +85,9 @@ func drawPanel(hdc uintptr, st *KeyState, nowNs int64) {
 		procDeleteDC.Call(memDC)
 	}()
 
-	// 1) 整面板填充半透明黑色（窗体本身已半透明，这里用纯黑底）
-	hbrBg, _, _ := procCreateSolidBrush.Call(rgb(0, 0, 0))
+	// 1) 整面板填充背景色
+	scheme := currentScheme()
+	hbrBg, _, _ := procCreateSolidBrush.Call(rgb(scheme.Bg[0], scheme.Bg[1], scheme.Bg[2]))
 	procFillRect.Call(memDC, uintptr(unsafe.Pointer(&rect{0, 0, int32(panelW), int32(panelH)})), hbrBg)
 	procDeleteObject.Call(hbrBg)
 
@@ -125,11 +126,12 @@ func drawKey(hdc uintptr, k KeyDef, st *KeyState, nowNs int64) {
 	procDeleteObject.Call(hbr)
 
 	// 标签
+	scheme := currentScheme()
 	procSetBkMode.Call(hdc, transp)
 	if down {
-		procSetTextColor.Call(hdc, rgb(255, 255, 255))
+		procSetTextColor.Call(hdc, rgb(scheme.KeyLabelOn[0], scheme.KeyLabelOn[1], scheme.KeyLabelOn[2]))
 	} else {
-		procSetTextColor.Call(hdc, rgb(220, 220, 220))
+		procSetTextColor.Call(hdc, rgb(scheme.KeyLabel[0], scheme.KeyLabel[1], scheme.KeyLabel[2]))
 	}
 	procSelectObject.Call(hdc, fontKey)
 	procSetTextAlign.Call(hdc, taCenter|taBaseline)
@@ -138,27 +140,28 @@ func drawKey(hdc uintptr, k KeyDef, st *KeyState, nowNs int64) {
 
 // computeKeyVisual 计算单键当前缩放与颜色
 // 按下：scale=1.1, color=主题色
-// 松开 150ms 内：scale 从 1.1 回到 1.0，颜色从主题色回灰
+// 松开 150ms 内：scale 从 1.1 回到 1.0，颜色从主题色回底色
 func computeKeyVisual(vk uint16, down bool, st *KeyState, nowNs int64) (scale float64, r, g, b uint8) {
 	const animMs = 150
 	th := currentTheme()
+	scheme := currentScheme()
 	if down {
 		return 1.1, th.Accent[0], th.Accent[1], th.Accent[2]
 	}
 	tStart, ok := st.animStart[vk]
 	if !ok {
-		return 1.0, 60, 60, 60
+		return 1.0, scheme.KeyOff[0], scheme.KeyOff[1], scheme.KeyOff[2]
 	}
 	elapsedMs := (nowNs - tStart) / int64(1e6)
 	if elapsedMs >= animMs {
 		delete(st.animStart, vk)
-		return 1.0, 60, 60, 60
+		return 1.0, scheme.KeyOff[0], scheme.KeyOff[1], scheme.KeyOff[2]
 	}
 	t := float64(elapsedMs) / float64(animMs)
 	scale = 1.1 - 0.1*t
-	r = uint8(float64(th.Accent[0]) - (float64(th.Accent[0])-60)*t)
-	g = uint8(float64(th.Accent[1]) - (float64(th.Accent[1])-60)*t)
-	b = uint8(float64(th.Accent[2]) - (float64(th.Accent[2])-60)*t)
+	r = uint8(float64(th.Accent[0]) - (float64(th.Accent[0])-float64(scheme.KeyOff[0]))*t)
+	g = uint8(float64(th.Accent[1]) - (float64(th.Accent[1])-float64(scheme.KeyOff[1]))*t)
+	b = uint8(float64(th.Accent[2]) - (float64(th.Accent[2])-float64(scheme.KeyOff[2]))*t)
 	return
 }
 
@@ -171,8 +174,10 @@ func drawMouse(hdc uintptr, st *KeyState, nowNs int64) {
 	mx := mouseX
 	my := mouseY
 
+	scheme := currentScheme()
+
 	// 背景灰底
-	hbrBg, _, _ := procCreateSolidBrush.Call(rgb(60, 60, 60))
+	hbrBg, _, _ := procCreateSolidBrush.Call(rgb(scheme.MouseBg[0], scheme.MouseBg[1], scheme.MouseBg[2]))
 	oldBr, _, _ := procSelectObject.Call(hdc, hbrBg)
 	procRoundRect.Call(hdc, uintptr(mx), uintptr(my),
 		uintptr(mx+mouseW), uintptr(my+mouseH), 12, 12)
@@ -220,10 +225,11 @@ func drawMouse(hdc uintptr, st *KeyState, nowNs int64) {
 
 func colorButton(down bool, st *KeyState, name string, nowNs int64) [3]uint8 {
 	th := currentTheme()
+	scheme := currentScheme()
 	if down {
 		return th.Accent
 	}
-	return [3]uint8{60, 60, 60}
+	return scheme.MouseBg
 }
 
 func fillRect2(hdc uintptr, x1, y1, x2, y2 int, c [3]uint8) {
@@ -242,7 +248,8 @@ func drawCloseButton(hdc uintptr) {
 	y := 6
 	w := 30
 	h := 30
-	hbr, _, _ := procCreateSolidBrush.Call(rgb(200, 50, 50))
+	scheme := currentScheme()
+	hbr, _, _ := procCreateSolidBrush.Call(rgb(scheme.CloseBg[0], scheme.CloseBg[1], scheme.CloseBg[2]))
 	oldBr, _, _ := procSelectObject.Call(hdc, hbr)
 	procRoundRect.Call(hdc, uintptr(x), uintptr(y), uintptr(x+w), uintptr(y+h), 6, 6)
 	procSelectObject.Call(hdc, oldBr)
