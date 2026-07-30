@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.4.3"
+const Version = "0.4.4"
 
 // Theme 主题配色
 type Theme struct {
@@ -293,13 +293,18 @@ func createCombo(parent uintptr, id uintptr, x, y, w, h int) uintptr {
 		uintptr(unsafe.Pointer(className)),
 		0,
 		uintptr(wsChild|wsVisible|cbsDropdown|cbsHasStrings),
-		uintptr(x), uintptr(y), uintptr(w), uintptr(h+120),
+		uintptr(x), uintptr(y), uintptr(w), uintptr(h+150),
 		parent, id, 0, 0)
-	for _, t := range themes {
-		title, _ := syscall.UTF16PtrFromString(t.Name)
-		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(title)))
+	// 先清空
+	procSendMessage.Call(hwnd, 0x014B, 0, 0) // CB_RESETCONTENT
+	// 添加选项 - 用变量保存指针防止 GC 回收
+	items := make([][]uint16, len(themes))
+	for i, t := range themes {
+		items[i] = utf16Slice(t.Name)
+		procSendMessage.Call(hwnd, 0x0140, 0, uintptr(unsafe.Pointer(&items[i][0])))
 	}
-	procSendMessage.Call(hwnd, 0x0161, uintptr(len(themes)), 0)
+	runtime.KeepAlive(items)
+	// 选中当前主题
 	procSendMessage.Call(hwnd, 0x014E, uintptr(settings.Theme), 0)
 	return hwnd
 }
