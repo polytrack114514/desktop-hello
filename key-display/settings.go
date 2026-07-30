@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.6.0"
+const Version = "0.7.0"
 
 // Theme 主题配色
 type Theme struct {
@@ -151,18 +151,28 @@ var (
 	procSetWindowText   = user32.NewProc("SetWindowTextW")
 	procSetWindowPos    = user32.NewProc("SetWindowPos")
 	procGetDlgItemText  = user32.NewProc("GetDlgItemTextW")
+	procGetDlgCtrlID    = user32.NewProc("GetDlgCtrlID")
+	procSetBkColor      = gdi32.NewProc("SetBkColor")
 
 	hwndSettings   uintptr
 	hwndAlphaEdit  uintptr
 	hwndSizeEdit   uintptr
-	hwndModeCheck  uintptr
+	hwndDarkBtn    uintptr
+	hwndLightBtn   uintptr
 	controlsCreated bool
+
+	hbrWindowBg    uintptr
+	hbrCardBg      uintptr
+	hbrEditBg      uintptr
+	hbrBtnSelected uintptr
+	hbrBtnNormal   uintptr
 )
 
 const (
 	idAlphaEdit  = 1001
 	idSizeEdit   = 1002
-	idModeCheck  = 1004
+	idDarkBtn    = 1012
+	idLightBtn   = 1013
 )
 
 const (
@@ -173,9 +183,18 @@ const (
 	wsVisible     = 0x10000000
 	esNumber      = 0x2000
 	bsAutoCheck   = 0x00000003 // BS_AUTOCHECKBOX
+	ssNotify      = 0x0100
+	ssCenter      = 0x01
+	stnClicked    = 0
 	mfSeparator   = 0x00000800
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
+)
+
+const (
+	WM_ERASEBKGND     = 0x0014
+	WM_CTLCOLORSTATIC = 0x0138
+	WM_CTLCOLOREDIT   = 0x0133
 )
 
 const WM_USER_TRAY = 0x0400 + 3
@@ -214,10 +233,55 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_CREATE:
 		if !controlsCreated {
+			makeBrushes()
 			createSettingsControls(hwnd)
 			controlsCreated = true
 		}
 		return 0
+
+	case WM_ERASEBKGND:
+		hdc := wParam
+		rc := rect{0, 0, int32(settingsWinW), int32(settingsWinH)}
+		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&rc)), hbrWindowBg)
+		card1 := rect{20, 20, 400, 140}
+		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&card1)), hbrCardBg)
+		card2 := rect{20, 155, 400, 235}
+		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&card2)), hbrCardBg)
+		return 1
+
+	case WM_CTLCOLORSTATIC:
+		ctrlID, _, _ := procGetDlgCtrlID.Call(lParam)
+		hdc := wParam
+		switch ctrlID {
+		case idDarkBtn:
+			if settings.Mode == 0 {
+				procSetBkColor.Call(hdc, rgb(0, 120, 212))
+				procSetTextColor.Call(hdc, rgb(255, 255, 255))
+				return hbrBtnSelected
+			}
+			procSetBkColor.Call(hdc, rgb(60, 60, 60))
+			procSetTextColor.Call(hdc, rgb(136, 136, 136))
+			return hbrBtnNormal
+		case idLightBtn:
+			if settings.Mode == 1 {
+				procSetBkColor.Call(hdc, rgb(0, 120, 212))
+				procSetTextColor.Call(hdc, rgb(255, 255, 255))
+				return hbrBtnSelected
+			}
+			procSetBkColor.Call(hdc, rgb(60, 60, 60))
+			procSetTextColor.Call(hdc, rgb(136, 136, 136))
+			return hbrBtnNormal
+		default:
+			procSetBkMode.Call(hdc, transp)
+			procSetTextColor.Call(hdc, rgb(224, 224, 224))
+			return 0
+		}
+
+	case WM_CTLCOLOREDIT:
+		hdc := wParam
+		procSetBkColor.Call(hdc, rgb(45, 45, 48))
+		procSetTextColor.Call(hdc, rgb(224, 224, 224))
+		return hbrEditBg
 
 	case WM_COMMAND_:
 		ctrlID := uint16(wParam & 0xFFFF)
@@ -247,16 +311,18 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				}
 			}
 		}
-		if notify == BN_CLICKED {
-			if ctrlID == idModeCheck {
-				check, _, _ := procSendMessage.Call(hwndModeCheck, BM_GETCHECK, 0, 0)
-				if check == BST_CHECKED {
-					settings.Mode = 1
-				} else {
-					settings.Mode = 0
-				}
+		if notify == stnClicked {
+			switch ctrlID {
+			case idDarkBtn:
+				settings.Mode = 0
 				saveSettings()
 				procInvalidateRect.Call(hwndMain, 0, 0)
+				updateThemeButtons()
+			case idLightBtn:
+				settings.Mode = 1
+				saveSettings()
+				procInvalidateRect.Call(hwndMain, 0, 0)
+				updateThemeButtons()
 			}
 		}
 		return 0
@@ -276,22 +342,22 @@ func getEditText(hwnd, ctrlID uintptr) string {
 }
 
 func createSettingsControls(hwnd uintptr) {
-	createStatic(hwnd, "透明度", 20, 20, 60, 20)
-	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 85, 18, 80, 24)
+	createStatic(hwnd, "外观", 32, 28, 100, 24)
+	createStatic(hwnd, "透明度", 44, 64, 60, 20)
+	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 114, 60, 60, 24)
 	setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
+	createStatic(hwnd, "%", 180, 64, 20, 20)
 
-	createStatic(hwnd, "面板大小", 20, 50, 60, 20)
-	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 85, 48, 80, 24)
+	createStatic(hwnd, "面板大小", 44, 99, 60, 20)
+	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 114, 95, 60, 24)
 	setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
+	createStatic(hwnd, "%", 180, 99, 20, 20)
 
-	hwndModeCheck = createCheckbox(hwnd, idModeCheck, 20, 82, 100, 24)
-	setCheckboxText(hwndModeCheck, "亮色模式")
-	if settings.Mode == 1 {
-		procSendMessage.Call(hwndModeCheck, BM_SETCHECK, BST_CHECKED, 0)
-	}
+	createStatic(hwnd, "主题", 32, 163, 100, 24)
+	hwndDarkBtn = createStaticBtn(hwnd, idDarkBtn, 44, 195, 80, 28, "暗色")
+	hwndLightBtn = createStaticBtn(hwnd, idLightBtn, 134, 195, 80, 28, "亮色")
 
-	createStatic(hwnd, "设置自动保存", 20, 118, 120, 20)
-	createStatic(hwnd, "版本 v"+Version, 180, 118, 80, 20)
+	createStatic(hwnd, "版本 v"+Version, 328, 310, 80, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
@@ -338,6 +404,31 @@ func setWindowText(hwnd uintptr, text string) {
 	procSetWindowText.Call(hwnd, uintptr(unsafe.Pointer(title)))
 }
 
+func makeBrushes() {
+	hbrWindowBg, _, _ = procCreateSolidBrush.Call(rgb(26, 26, 26))
+	hbrCardBg, _, _ = procCreateSolidBrush.Call(rgb(37, 37, 37))
+	hbrEditBg, _, _ = procCreateSolidBrush.Call(rgb(45, 45, 48))
+	hbrBtnSelected, _, _ = procCreateSolidBrush.Call(rgb(0, 120, 212))
+	hbrBtnNormal, _, _ = procCreateSolidBrush.Call(rgb(60, 60, 60))
+}
+
+func updateThemeButtons() {
+	procInvalidateRect.Call(hwndDarkBtn, 0, 1)
+	procInvalidateRect.Call(hwndLightBtn, 0, 1)
+}
+
+func createStaticBtn(parent uintptr, id uintptr, x, y, w, h int, text string) uintptr {
+	className, _ := syscall.UTF16PtrFromString("static")
+	title, _ := syscall.UTF16PtrFromString(text)
+	hwnd, _, _ := procCreateWindowEx.Call(0,
+		uintptr(unsafe.Pointer(className)),
+		uintptr(unsafe.Pointer(title)),
+		uintptr(wsChild|wsVisible|ssNotify|ssCenter),
+		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+		parent, id, 0, 0)
+	return hwnd
+}
+
 func resizeMainWindow() {
 	sw, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 	sh, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
@@ -350,9 +441,12 @@ func resizeMainWindow() {
 	procInvalidateRect.Call(hwndMain, 0, 0)
 }
 
+const settingsWinW = 420
+const settingsWinH = 340
+
 func createSettingsWindow() uintptr {
 	className, _ := syscall.UTF16PtrFromString("BongoKeySettingsClass")
-	title, _ := syscall.UTF16PtrFromString("设置")
+	title, _ := syscall.UTF16PtrFromString("偏好设置")
 
 	hMod, _, _ := hInst.Call(0)
 
@@ -372,7 +466,7 @@ func createSettingsWindow() uintptr {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(title)),
 		style,
-		0, 0, 280, 190,
+		0, 0, settingsWinW, settingsWinH,
 		0, 0, hMod, 0,
 	)
 	return r
@@ -383,10 +477,14 @@ func showSettingsWindow() {
 		hwndSettings = createSettingsWindow()
 	}
 	if hwndSettings != 0 {
+		setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
+		setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
+		updateThemeButtons()
+
 		sw, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 		sh, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
-		x := (int(sw) - 280) / 2
-		y := (int(sh) - 190) / 2
+		x := (int(sw) - settingsWinW) / 2
+		y := (int(sh) - settingsWinH) / 2
 		procSetWindowPos.Call(hwndSettings, 0,
 			uintptr(x), uintptr(y),
 			0, 0, 0x0001)
