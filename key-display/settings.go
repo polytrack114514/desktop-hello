@@ -172,7 +172,7 @@ const (
 	wsChild       = 0x40000000
 	wsVisible     = 0x10000000
 	esNumber      = 0x2000
-	bsAutoCheck   = 0x00000009
+	bsAutoCheck   = 0x00000003 // BS_AUTOCHECKBOX
 	mfSeparator   = 0x00000800
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
