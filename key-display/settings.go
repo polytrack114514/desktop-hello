@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.7.2"
+const Version = "0.7.5"
 
 // i18n 多语言文本
 func tr(s string) string {
@@ -201,14 +201,22 @@ var (
 	procGetDlgCtrlID    = user32.NewProc("GetDlgCtrlID")
 	procSetBkColor      = gdi32.NewProc("SetBkColor")
 
-	hwndSettings   uintptr
-	hwndAlphaEdit  uintptr
-	hwndSizeEdit   uintptr
-	hwndDarkBtn    uintptr
-	hwndLightBtn   uintptr
-	hwndCnBtn      uintptr
-	hwndEnBtn      uintptr
-	controlsCreated bool
+	hwndSettings          uintptr
+	hwndAppearanceLabel   uintptr
+	hwndOpacityLabel      uintptr
+	hwndOpacityPercent    uintptr
+	hwndSizeLabel         uintptr
+	hwndSizePercent       uintptr
+	hwndThemeLabel        uintptr
+	hwndLangLabel         uintptr
+	hwndVersionLabel      uintptr
+	hwndAlphaEdit         uintptr
+	hwndSizeEdit          uintptr
+	hwndDarkBtn           uintptr
+	hwndLightBtn          uintptr
+	hwndCnBtn             uintptr
+	hwndEnBtn             uintptr
+	controlsCreated       bool
 
 	hbrWindowBg    uintptr
 	hbrCardBg      uintptr
@@ -421,26 +429,45 @@ func getEditText(hwnd, ctrlID uintptr) string {
 }
 
 func createSettingsControls(hwnd uintptr) {
-	createStatic(hwnd, tr("外观"), 32, 28, 100, 24)
-	createStatic(hwnd, tr("透明度"), 44, 64, 60, 20)
+	hwndAppearanceLabel = createStatic(hwnd, tr("外观"), 32, 28, 100, 24)
+	hwndOpacityLabel = createStatic(hwnd, tr("透明度"), 44, 64, 60, 20)
 	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 114, 60, 60, 24)
 	setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
-	createStatic(hwnd, "%", 180, 64, 20, 20)
+	hwndOpacityPercent = createStatic(hwnd, "%", 180, 64, 20, 20)
 
-	createStatic(hwnd, tr("面板大小"), 44, 99, 60, 20)
+	hwndSizeLabel = createStatic(hwnd, tr("面板大小"), 44, 99, 60, 20)
 	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 114, 95, 60, 24)
 	setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
-	createStatic(hwnd, "%", 180, 99, 20, 20)
+	hwndSizePercent = createStatic(hwnd, "%", 180, 99, 20, 20)
 
-	createStatic(hwnd, tr("主题"), 32, 163, 100, 24)
+	hwndThemeLabel = createStatic(hwnd, tr("主题"), 32, 163, 100, 24)
 	hwndDarkBtn = createStaticBtn(hwnd, idDarkBtn, 44, 195, 80, 28, tr("暗色"))
 	hwndLightBtn = createStaticBtn(hwnd, idLightBtn, 134, 195, 80, 28, tr("亮色"))
 
-	createStatic(hwnd, tr("语言"), 32, 248, 100, 24)
-	hwndCnBtn = createStaticBtn(hwnd, idCnBtn, 44, 280, 80, 28, tr("中文"))
-	hwndEnBtn = createStaticBtn(hwnd, idEnBtn, 134, 280, 80, 28, tr("英文"))
+	hwndLangLabel = createStatic(hwnd, tr("语言"), 32, 248, 100, 24)
+	hwndCnBtn = createStaticBtn(hwnd, idCnBtn, 44, 280, 80, 28, langBtnText(0))
+	hwndEnBtn = createStaticBtn(hwnd, idEnBtn, 134, 280, 80, 28, langBtnText(1))
 
-	createStatic(hwnd, "v"+Version, 328, 310, 80, 20)
+	hwndVersionLabel = createStatic(hwnd, "v"+Version, 328, 310, 80, 20)
+}
+
+// langBtnText 决定语言按钮上显示的文本
+// which=0 表示中文按钮, which=1 表示英文按钮
+// 中文模式: "中文" 与 "<English>"
+// 英文模式: "<中文>" 与 "English"
+func langBtnText(which int) string {
+	if settings.Language == 0 {
+		// 当前为中文
+		if which == 0 {
+			return "中文"
+		}
+		return "<English>"
+	}
+	// 当前为英文
+	if which == 0 {
+		return "<中文>"
+	}
+	return "English"
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
@@ -506,11 +533,25 @@ func updateLangButtons() {
 }
 
 func rebuildSettingsUI() {
-	updateLangButtons()
+	// 更新所有静态文本标签
+	setWindowText(hwndAppearanceLabel, tr("外观"))
+	setWindowText(hwndOpacityLabel, tr("透明度"))
+	setWindowText(hwndSizeLabel, tr("面板大小"))
+	setWindowText(hwndThemeLabel, tr("主题"))
+	setWindowText(hwndLangLabel, tr("语言"))
+	setWindowText(hwndVersionLabel, "v"+Version)
+
+	// 更新主题按钮文本
 	setWindowText(hwndDarkBtn, tr("暗色"))
 	setWindowText(hwndLightBtn, tr("亮色"))
-	setWindowText(hwndCnBtn, tr("中文"))
-	setWindowText(hwndEnBtn, tr("英文"))
+
+	// 更新语言按钮文本（带 < > 标记）
+	setWindowText(hwndCnBtn, langBtnText(0))
+	setWindowText(hwndEnBtn, langBtnText(1))
+
+	// 触发按钮和窗口重绘
+	updateThemeButtons()
+	updateLangButtons()
 	procInvalidateRect.Call(hwndSettings, 0, 1)
 }
 
