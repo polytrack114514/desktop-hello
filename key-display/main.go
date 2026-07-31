@@ -8,6 +8,7 @@ func main() {
 	runtime.LockOSThread()
 
 	loadSettings()
+	applyScale()
 	initFonts()
 	initIcons()
 

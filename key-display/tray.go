@@ -66,9 +66,9 @@ func removeTrayIcon(hwnd uintptr) {
 func showTrayMenu(hwnd uintptr) {
 	menu, _, _ := procCreatePopupMenu.Call()
 
-	settingsText := utf16Slice("设置")
-	websiteText := utf16Slice("前往官网")
-	exitText := utf16Slice("退出")
+	settingsText := utf16Slice(tr("设置"))
+	websiteText := utf16Slice(tr("前往官网"))
+	exitText := utf16Slice(tr("退出"))
 
 	procAppendMenu.Call(menu, 0, cmdSettings, uintptr(unsafe.Pointer(&settingsText[0])))
 	procAppendMenu.Call(menu, 0, cmdWebsite, uintptr(unsafe.Pointer(&websiteText[0])))

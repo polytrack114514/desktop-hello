@@ -10,7 +10,47 @@ import (
 	"unsafe"
 )
 
-const Version = "0.7.0"
+const Version = "0.7.2"
+
+// i18n 多语言文本
+func tr(s string) string {
+	if settings.Language == 1 {
+		return trEn(s)
+	}
+	return s
+}
+
+func trEn(s string) string {
+	switch s {
+	case "设置":
+		return "Settings"
+	case "外观":
+		return "Appearance"
+	case "透明度":
+		return "Opacity"
+	case "面板大小":
+		return "Panel Size"
+	case "主题":
+		return "Theme"
+	case "暗色":
+		return "Dark"
+	case "亮色":
+		return "Light"
+	case "语言":
+		return "Language"
+	case "中文":
+		return "Chinese"
+	case "英文":
+		return "English"
+	case "前往官网":
+		return "Website"
+	case "退出":
+		return "Exit"
+	case "设置自动保存":
+		return "Auto-saved"
+	}
+	return s
+}
 
 // Theme 主题配色
 type Theme struct {
@@ -64,15 +104,17 @@ func currentScheme() ColorScheme {
 }
 
 type Settings struct {
-	Alpha int // 透明度百分比 30-100
-	Scale int // 面板大小百分比 50-100
-	Mode  int // 0=暗色, 1=亮色
+	Alpha    int // 透明度百分比 30-100
+	Scale    int // 面板大小百分比 50-100
+	Mode     int // 0=暗色, 1=亮色
+	Language int // 0=中文, 1=英文
 }
 
 var settings = Settings{
-	Alpha: 70,
-	Scale: 100,
-	Mode:  0,
+	Alpha:    70,
+	Scale:    100,
+	Mode:     0,
+	Language: 0,
 }
 
 // alphaValue 把百分比(30-100)转成 Windows 透明度值(0-255)
@@ -127,6 +169,10 @@ func loadSettings() {
 			if n, err := strconv.Atoi(val); err == nil {
 				settings.Mode = clampInt(n, 0, 1)
 			}
+		case "language":
+			if n, err := strconv.Atoi(val); err == nil {
+				settings.Language = clampInt(n, 0, 1)
+			}
 		}
 	}
 }
@@ -134,7 +180,8 @@ func loadSettings() {
 func saveSettings() {
 	data := "alpha=" + strconv.Itoa(settings.Alpha) +
 		"\nscale=" + strconv.Itoa(settings.Scale) +
-		"\nmode=" + strconv.Itoa(settings.Mode) + "\n"
+		"\nmode=" + strconv.Itoa(settings.Mode) +
+		"\nlanguage=" + strconv.Itoa(settings.Language) + "\n"
 	os.WriteFile(settingsFilePath(), []byte(data), 0644)
 }
 
@@ -159,6 +206,8 @@ var (
 	hwndSizeEdit   uintptr
 	hwndDarkBtn    uintptr
 	hwndLightBtn   uintptr
+	hwndCnBtn      uintptr
+	hwndEnBtn      uintptr
 	controlsCreated bool
 
 	hbrWindowBg    uintptr
@@ -173,6 +222,8 @@ const (
 	idSizeEdit   = 1002
 	idDarkBtn    = 1012
 	idLightBtn   = 1013
+	idCnBtn      = 1014
+	idEnBtn      = 1015
 )
 
 const (
@@ -247,6 +298,8 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&card1)), hbrCardBg)
 		card2 := rect{20, 155, 400, 235}
 		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&card2)), hbrCardBg)
+		card3 := rect{20, 240, 400, 320}
+		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&card3)), hbrCardBg)
 		return 1
 
 	case WM_CTLCOLORSTATIC:
@@ -264,6 +317,24 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			return hbrBtnNormal
 		case idLightBtn:
 			if settings.Mode == 1 {
+				procSetBkColor.Call(hdc, rgb(0, 120, 212))
+				procSetTextColor.Call(hdc, rgb(255, 255, 255))
+				return hbrBtnSelected
+			}
+			procSetBkColor.Call(hdc, rgb(60, 60, 60))
+			procSetTextColor.Call(hdc, rgb(136, 136, 136))
+			return hbrBtnNormal
+		case idCnBtn:
+			if settings.Language == 0 {
+				procSetBkColor.Call(hdc, rgb(0, 120, 212))
+				procSetTextColor.Call(hdc, rgb(255, 255, 255))
+				return hbrBtnSelected
+			}
+			procSetBkColor.Call(hdc, rgb(60, 60, 60))
+			procSetTextColor.Call(hdc, rgb(136, 136, 136))
+			return hbrBtnNormal
+		case idEnBtn:
+			if settings.Language == 1 {
 				procSetBkColor.Call(hdc, rgb(0, 120, 212))
 				procSetTextColor.Call(hdc, rgb(255, 255, 255))
 				return hbrBtnSelected
@@ -323,6 +394,14 @@ func settingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				saveSettings()
 				procInvalidateRect.Call(hwndMain, 0, 0)
 				updateThemeButtons()
+			case idCnBtn:
+				settings.Language = 0
+				saveSettings()
+				rebuildSettingsUI()
+			case idEnBtn:
+				settings.Language = 1
+				saveSettings()
+				rebuildSettingsUI()
 			}
 		}
 		return 0
@@ -342,22 +421,26 @@ func getEditText(hwnd, ctrlID uintptr) string {
 }
 
 func createSettingsControls(hwnd uintptr) {
-	createStatic(hwnd, "外观", 32, 28, 100, 24)
-	createStatic(hwnd, "透明度", 44, 64, 60, 20)
+	createStatic(hwnd, tr("外观"), 32, 28, 100, 24)
+	createStatic(hwnd, tr("透明度"), 44, 64, 60, 20)
 	hwndAlphaEdit = createEdit(hwnd, idAlphaEdit, 114, 60, 60, 24)
 	setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
 	createStatic(hwnd, "%", 180, 64, 20, 20)
 
-	createStatic(hwnd, "面板大小", 44, 99, 60, 20)
+	createStatic(hwnd, tr("面板大小"), 44, 99, 60, 20)
 	hwndSizeEdit = createEdit(hwnd, idSizeEdit, 114, 95, 60, 24)
 	setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
 	createStatic(hwnd, "%", 180, 99, 20, 20)
 
-	createStatic(hwnd, "主题", 32, 163, 100, 24)
-	hwndDarkBtn = createStaticBtn(hwnd, idDarkBtn, 44, 195, 80, 28, "暗色")
-	hwndLightBtn = createStaticBtn(hwnd, idLightBtn, 134, 195, 80, 28, "亮色")
+	createStatic(hwnd, tr("主题"), 32, 163, 100, 24)
+	hwndDarkBtn = createStaticBtn(hwnd, idDarkBtn, 44, 195, 80, 28, tr("暗色"))
+	hwndLightBtn = createStaticBtn(hwnd, idLightBtn, 134, 195, 80, 28, tr("亮色"))
 
-	createStatic(hwnd, "版本 v"+Version, 328, 310, 80, 20)
+	createStatic(hwnd, tr("语言"), 32, 248, 100, 24)
+	hwndCnBtn = createStaticBtn(hwnd, idCnBtn, 44, 280, 80, 28, tr("中文"))
+	hwndEnBtn = createStaticBtn(hwnd, idEnBtn, 134, 280, 80, 28, tr("英文"))
+
+	createStatic(hwnd, "v"+Version, 328, 310, 80, 20)
 }
 
 func createStatic(parent uintptr, text string, x, y, w, h int) uintptr {
@@ -417,6 +500,20 @@ func updateThemeButtons() {
 	procInvalidateRect.Call(hwndLightBtn, 0, 1)
 }
 
+func updateLangButtons() {
+	procInvalidateRect.Call(hwndCnBtn, 0, 1)
+	procInvalidateRect.Call(hwndEnBtn, 0, 1)
+}
+
+func rebuildSettingsUI() {
+	updateLangButtons()
+	setWindowText(hwndDarkBtn, tr("暗色"))
+	setWindowText(hwndLightBtn, tr("亮色"))
+	setWindowText(hwndCnBtn, tr("中文"))
+	setWindowText(hwndEnBtn, tr("英文"))
+	procInvalidateRect.Call(hwndSettings, 0, 1)
+}
+
 func createStaticBtn(parent uintptr, id uintptr, x, y, w, h int, text string) uintptr {
 	className, _ := syscall.UTF16PtrFromString("static")
 	title, _ := syscall.UTF16PtrFromString(text)
@@ -442,11 +539,11 @@ func resizeMainWindow() {
 }
 
 const settingsWinW = 420
-const settingsWinH = 340
+const settingsWinH = 420
 
 func createSettingsWindow() uintptr {
 	className, _ := syscall.UTF16PtrFromString("BongoKeySettingsClass")
-	title, _ := syscall.UTF16PtrFromString("设置")
+	title, _ := syscall.UTF16PtrFromString(tr("设置"))
 
 	hMod, _, _ := hInst.Call(0)
 
@@ -480,6 +577,7 @@ func showSettingsWindow() {
 		setWindowText(hwndAlphaEdit, strconv.Itoa(settings.Alpha))
 		setWindowText(hwndSizeEdit, strconv.Itoa(settings.Scale))
 		updateThemeButtons()
+		updateLangButtons()
 
 		sw, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 		sh, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
