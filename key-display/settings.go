@@ -446,7 +446,7 @@ const settingsWinH = 340
 
 func createSettingsWindow() uintptr {
 	className, _ := syscall.UTF16PtrFromString("BongoKeySettingsClass")
-	title, _ := syscall.UTF16PtrFromString("偏好设置")
+	title, _ := syscall.UTF16PtrFromString("设置")
 
 	hMod, _, _ := hInst.Call(0)
 
