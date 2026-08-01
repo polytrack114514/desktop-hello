@@ -284,8 +284,8 @@ func drawStats(hdc uintptr, st *KeyState) {
 
 	cx := mouseX + mouseW/2
 
-	// 时间
+	// 时间（年月日 + 时分秒）
 	now := time.Now()
-	timeStr := now.Format("15:04:05")
+	timeStr := now.Format("2006-01-02 15:04:05")
 	drawTextCenter(hdc, timeStr, cx, mouseY+mouseH+18)
 }
