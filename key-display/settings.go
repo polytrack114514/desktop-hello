@@ -114,7 +114,7 @@ var settings = Settings{
 	Alpha:    70,
 	Scale:    100,
 	Mode:     0,
-	Language: 0,
+	Language: 1, // 默认英文，用户可在设置中切换
 }
 
 // alphaValue 把百分比(30-100)转成 Windows 透明度值(0-255)
