@@ -17,6 +17,7 @@ const (
 	WS_EX_TRANSPARENT = 0x00000020
 	WS_EX_TOOLWINDOW  = 0x00000080
 	WS_EX_APPWINDOW   = 0x00040000
+	WS_EX_NOACTIVATE  = 0x08000000
 
 	WM_CREATE = 0x0001
 	WM_PAINT  = 0x000F
@@ -48,7 +49,8 @@ const (
 	CS_HREDRAW = 0x0002
 	CS_VREDRAW = 0x0001
 
-	SW_SHOW = 5
+	SW_SHOW           = 5
+	SW_SHOWNOACTIVATE = 4
 )
 
 // wndClassEx 简化窗口类结构
@@ -270,7 +272,7 @@ func createMainWindow() uintptr {
 	windowX = (int(sw) - panelW) / 2
 	windowY = int(sh) - panelH - 40
 
-	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_APPWINDOW)
+	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE)
 	style := uintptr(WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN)
 
 	r1, _, _ := procCreateWindowEx.Call(

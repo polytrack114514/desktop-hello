@@ -16,7 +16,7 @@ func main() {
 	if hwnd == 0 {
 		return
 	}
-	procShowWindow.Call(hwnd, SW_SHOW)
+	procShowWindow.Call(hwnd, SW_SHOWNOACTIVATE)
 
 	messageLoop()
 }
