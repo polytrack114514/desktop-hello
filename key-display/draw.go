@@ -2,7 +2,6 @@ package main
 
 import (
 	"runtime"
-	"strconv"
 	"syscall"
 	"time"
 	"unsafe"
@@ -275,7 +274,7 @@ func drawTextCenter(hdc uintptr, s string, x, y int) {
 	runtime.KeepAlive(buf)
 }
 
-// drawStats 在鼠标区域下方绘制时间和按键统计
+// drawStats 在鼠标区域下方绘制时间
 func drawStats(hdc uintptr, st *KeyState) {
 	scheme := currentScheme()
 	procSetBkMode.Call(hdc, transp)
@@ -289,8 +288,4 @@ func drawStats(hdc uintptr, st *KeyState) {
 	now := time.Now()
 	timeStr := now.Format("15:04:05")
 	drawTextCenter(hdc, timeStr, cx, mouseY+mouseH+18)
-
-	// 按键次数
-	keyStr := tr("按键") + ": " + strconv.Itoa(st.totalKeys)
-	drawTextCenter(hdc, keyStr, cx, mouseY+mouseH+38)
 }

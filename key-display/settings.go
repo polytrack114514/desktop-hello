@@ -48,8 +48,6 @@ func trEn(s string) string {
 		return "Exit"
 	case "设置自动保存":
 		return "Auto-saved"
-	case "按键":
-		return "Keys"
 	}
 	return s
 }

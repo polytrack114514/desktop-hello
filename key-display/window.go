@@ -105,7 +105,6 @@ type KeyState struct {
 	left, middle, right bool
 	wheelDir  int    // 0=无, 1=上, -1=下
 	wheelTime int64  // 滚轮事件时间戳（纳秒）
-	totalKeys int    // 总按键次数
 }
 
 var state = &KeyState{
@@ -219,7 +218,6 @@ func applyKey(ev keyEvent) {
 	if ev.down {
 		state.keys[ev.vk] = true
 		delete(state.animStart, ev.vk) // 按下时取消任何松开动画
-		state.totalKeys++
 	} else {
 		delete(state.keys, ev.vk)
 		state.animStart[ev.vk] = time.Now().UnixNano()
