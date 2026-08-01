@@ -272,8 +272,8 @@ func createMainWindow() uintptr {
 	windowX = (int(sw) - panelW) / 2
 	windowY = int(sh) - panelH - 40
 
-	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE)
-	style := uintptr(WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN)
+	exStyle := uintptr(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
+	style := uintptr(WS_POPUP | WS_CLIPCHILDREN)
 
 	r1, _, _ := procCreateWindowEx.Call(
 		exStyle,
