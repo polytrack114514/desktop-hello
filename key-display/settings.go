@@ -103,18 +103,23 @@ func currentScheme() ColorScheme {
 	return darkScheme
 }
 
+// settingsVersion 当前设置文件版本号，用于检测旧版本并迁移
+const settingsVersion = 2
+
 type Settings struct {
 	Alpha    int // 透明度百分比 30-100
 	Scale    int // 面板大小百分比 50-100
 	Mode     int // 0=暗色, 1=亮色
 	Language int // 0=中文, 1=英文
+	Version  int // 设置文件版本
 }
 
 var settings = Settings{
 	Alpha:    70,
 	Scale:    100,
 	Mode:     0,
-	Language: 1, // 默认英文，用户可在设置中切换
+	Language: 1, // 默认英文
+	Version:  settingsVersion,
 }
 
 // alphaValue 把百分比(30-100)转成 Windows 透明度值(0-255)
@@ -147,8 +152,12 @@ func settingsFilePath() string {
 func loadSettings() {
 	data, err := os.ReadFile(settingsFilePath())
 	if err != nil {
+		// 没有配置文件，使用默认值（英文）
 		return
 	}
+	// 检测版本号和语言
+	hasVersion := false
+	oldVersion := false
 	for _, line := range strings.Split(string(data), "\n") {
 		parts := strings.SplitN(strings.TrimSpace(line), "=", 2)
 		if len(parts) != 2 {
@@ -173,12 +182,24 @@ func loadSettings() {
 			if n, err := strconv.Atoi(val); err == nil {
 				settings.Language = clampInt(n, 0, 1)
 			}
+		case "version":
+			if n, err := strconv.Atoi(val); err == nil {
+				hasVersion = true
+				if n < settingsVersion {
+					oldVersion = true
+				}
+			}
 		}
+	}
+	// 旧版本迁移：强制默认英文
+	if oldVersion || !hasVersion {
+		settings.Language = 1
 	}
 }
 
 func saveSettings() {
-	data := "alpha=" + strconv.Itoa(settings.Alpha) +
+	data := "version=" + strconv.Itoa(settingsVersion) +
+		"\nalpha=" + strconv.Itoa(settings.Alpha) +
 		"\nscale=" + strconv.Itoa(settings.Scale) +
 		"\nmode=" + strconv.Itoa(settings.Mode) +
 		"\nlanguage=" + strconv.Itoa(settings.Language) + "\n"
