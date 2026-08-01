@@ -54,9 +54,9 @@ const (
 	baseKeyGap  = 4
 	baseOriginX = 8
 	baseOriginY = 8
-	basePanelW  = 860
+	basePanelW  = 684
 	basePanelH  = 280
-	baseMouseX  = 744
+	baseMouseX  = 576
 	baseMouseY  = 55
 	baseMouseW  = 100
 	baseMouseH  = 170
@@ -116,7 +116,7 @@ func buildKeyMap() []KeyDef {
 		x += 36 + keyGap
 	}
 
-	// 行 2：` 1..0 - = Backspace
+	// 行 2：1..0 Backspace（去掉 ` - =）
 	y := originY + keySize + keyGap
 	x = originX
 	row2 := []struct {
@@ -124,12 +124,10 @@ func buildKeyMap() []KeyDef {
 		label string
 		w     int
 	}{
-		{vkOem3, "`", keySize},
 		{0x31, "1", keySize}, {0x32, "2", keySize}, {0x33, "3", keySize},
 		{0x34, "4", keySize}, {0x35, "5", keySize}, {0x36, "6", keySize},
 		{0x37, "7", keySize}, {0x38, "8", keySize}, {0x39, "9", keySize},
 		{0x30, "0", keySize},
-		{vkOemMinus, "-", keySize}, {vkOemPlus, "=", keySize},
 		{vkBackspace, "←", 88},
 	}
 	for _, k := range row2 {
@@ -137,7 +135,7 @@ func buildKeyMap() []KeyDef {
 		x += k.w + keyGap
 	}
 
-	// 行 3：Tab Q..P [ ] \
+	// 行 3：Tab Q..P（去掉 [ ] \）
 	y = originY + 2*(keySize+keyGap)
 	x = originX
 	row3 := []struct {
@@ -150,15 +148,13 @@ func buildKeyMap() []KeyDef {
 		{0x52, "R", keySize}, {0x54, "T", keySize}, {0x59, "Y", keySize},
 		{0x55, "U", keySize}, {0x49, "I", keySize}, {0x4F, "O", keySize},
 		{0x50, "P", keySize},
-		{vkOem4, "[", keySize}, {vkOem6, "]", keySize},
-		{vkOem5, "\\", 64},
 	}
 	for _, k := range row3 {
 		keys = append(keys, KeyDef{k.vk, x, y, k.w, keySize, k.label})
 		x += k.w + keyGap
 	}
 
-	// 行 4：Caps A..L ; ' Enter
+	// 行 4：Caps A..L Enter（去掉 ; '）
 	y = originY + 3*(keySize+keyGap)
 	x = originX
 	row4 := []struct {
@@ -170,7 +166,6 @@ func buildKeyMap() []KeyDef {
 		{0x41, "A", keySize}, {0x53, "S", keySize}, {0x44, "D", keySize},
 		{0x46, "F", keySize}, {0x47, "G", keySize}, {0x48, "H", keySize},
 		{0x4A, "J", keySize}, {0x4B, "K", keySize}, {0x4C, "L", keySize},
-		{vkOem1, ";", keySize}, {vkOem7, "'", keySize},
 		{vkEnter, "Enter", 84},
 	}
 	for _, k := range row4 {
@@ -178,7 +173,7 @@ func buildKeyMap() []KeyDef {
 		x += k.w + keyGap
 	}
 
-	// 行 5：Shift Z..M , . / Shift
+	// 行 5：Shift Z..M Shift（去掉 , . /）
 	y = originY + 4*(keySize+keyGap)
 	x = originX
 	row5 := []struct {
@@ -190,8 +185,6 @@ func buildKeyMap() []KeyDef {
 		{0x5A, "Z", keySize}, {0x58, "X", keySize}, {0x43, "C", keySize},
 		{0x56, "V", keySize}, {0x42, "B", keySize}, {0x4E, "N", keySize},
 		{0x4D, "M", keySize},
-		{vkOemComma, ",", keySize}, {vkOemPeriod, ".", keySize},
-		{vkOem2, "/", keySize},
 		{vkRShift, "Shift", 88},
 	}
 	for _, k := range row5 {
@@ -199,7 +192,7 @@ func buildKeyMap() []KeyDef {
 		x += k.w + keyGap
 	}
 
-	// 行 6：Ctrl Win Alt Space Alt Win Menu Ctrl
+	// 行 6：Ctrl Win Alt Space Alt（去掉右侧 Win Menu Ctrl）
 	y = originY + 5*(keySize+keyGap)
 	x = originX
 	row6 := []struct {
@@ -212,9 +205,6 @@ func buildKeyMap() []KeyDef {
 		{vkLAlt, "Alt", 52},
 		{vkSpace, "Space", 268},
 		{vkRAlt, "Alt", 52},
-		{vkRWin, "Win", 52},
-		{vkMenu, "≡", 52},
-		{vkRCtrl, "Ctrl", 52},
 	}
 	for _, k := range row6 {
 		keys = append(keys, KeyDef{k.vk, x, y, k.w, keySize, k.label})

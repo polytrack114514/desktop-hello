@@ -39,7 +39,8 @@ const (
 
 	LWA_ALPHA = 0x00000002
 
-	IDT_ANIM = 1
+	IDT_ANIM  = 1
+	IDT_CLOCK = 2
 
 	SM_CXSCREEN = 0
 	SM_CYSCREEN = 1
@@ -104,6 +105,7 @@ type KeyState struct {
 	left, middle, right bool
 	wheelDir  int    // 0=无, 1=上, -1=下
 	wheelTime int64  // 滚轮事件时间戳（纳秒）
+	totalKeys int    // 总按键次数
 }
 
 var state = &KeyState{
@@ -128,6 +130,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		addTrayIcon(hwnd)
 		// 安装钩子
 		installHooks(hwnd)
+		// 启动时钟定时器（每秒刷新一次，用于显示时间）
+		procSetTimer.Call(hwnd, IDT_CLOCK, 1000, 0)
 		return 0
 
 	case WM_USER_KEYEVENT:
@@ -172,6 +176,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			if len(state.animStart) == 0 && state.wheelDir == 0 {
 				procKillTimer.Call(hwnd, IDT_ANIM)
 			}
+		} else if wParam == IDT_CLOCK {
+			// 时钟定时器：每秒刷新面板以更新时间显示
+			procInvalidateRect.Call(hwnd, 0, 0)
 		}
 		return 0
 
@@ -212,6 +219,7 @@ func applyKey(ev keyEvent) {
 	if ev.down {
 		state.keys[ev.vk] = true
 		delete(state.animStart, ev.vk) // 按下时取消任何松开动画
+		state.totalKeys++
 	} else {
 		delete(state.keys, ev.vk)
 		state.animStart[ev.vk] = time.Now().UnixNano()

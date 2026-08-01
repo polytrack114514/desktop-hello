@@ -2,7 +2,9 @@ package main
 
 import (
 	"runtime"
+	"strconv"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -101,6 +103,9 @@ func drawPanel(hdc uintptr, st *KeyState, nowNs int64) {
 
 	// 4) 画 × 按钮
 	drawCloseButton(memDC)
+
+	// 5) 画时间与按键统计
+	drawStats(memDC, st)
 
 	// 拷贝到屏幕
 	procBitBlt.Call(hdc, 0, 0, uintptr(panelW), uintptr(panelH),
@@ -268,4 +273,24 @@ func drawTextCenter(hdc uintptr, s string, x, y int) {
 	procTextOut.Call(hdc, uintptr(x), uintptr(y),
 		uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)-1))
 	runtime.KeepAlive(buf)
+}
+
+// drawStats 在鼠标区域下方绘制时间和按键统计
+func drawStats(hdc uintptr, st *KeyState) {
+	scheme := currentScheme()
+	procSetBkMode.Call(hdc, transp)
+	procSetTextColor.Call(hdc, rgb(scheme.KeyLabel[0], scheme.KeyLabel[1], scheme.KeyLabel[2]))
+	procSelectObject.Call(hdc, fontKey)
+	procSetTextAlign.Call(hdc, taCenter|taBaseline)
+
+	cx := mouseX + mouseW/2
+
+	// 时间
+	now := time.Now()
+	timeStr := now.Format("15:04:05")
+	drawTextCenter(hdc, timeStr, cx, mouseY+mouseH+18)
+
+	// 按键次数
+	keyStr := tr("按键") + ": " + strconv.Itoa(st.totalKeys)
+	drawTextCenter(hdc, keyStr, cx, mouseY+mouseH+38)
 }

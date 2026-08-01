@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const Version = "0.7.5"
+const Version = "0.8.0"
 
 // i18n 多语言文本
 func tr(s string) string {
@@ -48,6 +48,8 @@ func trEn(s string) string {
 		return "Exit"
 	case "设置自动保存":
 		return "Auto-saved"
+	case "按键":
+		return "Keys"
 	}
 	return s
 }
