@@ -2,7 +2,7 @@
   <img src="key-display/app.ico.png" width="128" height="128" alt="Logo">
 </p>
 
-<h1 align="center">Desktop Hello</h1>
+<h1 align="center">Keypad Live</h1>
 
 <p align="center">
   <a href="https://github.com/polytrack114514/desktop-hello/releases">

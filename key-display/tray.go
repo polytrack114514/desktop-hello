@@ -49,7 +49,7 @@ func addTrayIcon(hwnd uintptr) {
 	nid.UCallbackMessage = WM_USER_TRAY
 	nid.HIcon = appIcon
 
-	tip := utf16Slice("按键显示器 v" + Version)
+	tip := utf16Slice("Keypad Live v" + Version)
 	copy(nid.SzTip[:], tip[:min(len(tip), 128)])
 
 	procShellNotify.Call(nimAdd, uintptr(unsafe.Pointer(&nid)))

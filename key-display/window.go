@@ -252,7 +252,7 @@ var (
 // createMainWindow 创建主窗口，返回 hwnd
 func createMainWindow() uintptr {
 	className, _ := syscall.UTF16PtrFromString("BongoKeyDisplayClass")
-	title, _ := syscall.UTF16PtrFromString("Bongo Key Display")
+	title, _ := syscall.UTF16PtrFromString("Keypad Live")
 
 	hMod, _, _ := hInst.Call(0)
 
