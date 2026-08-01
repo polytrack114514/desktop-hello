@@ -67,7 +67,7 @@ func showTrayMenu(hwnd uintptr) {
 	menu, _, _ := procCreatePopupMenu.Call()
 
 	settingsText := utf16Slice(tr("设置"))
-	websiteText := utf16Slice(tr("前往官网"))
+	websiteText := utf16Slice(tr("GitHub 仓库"))
 	exitText := utf16Slice(tr("退出"))
 
 	procAppendMenu.Call(menu, 0, cmdSettings, uintptr(unsafe.Pointer(&settingsText[0])))

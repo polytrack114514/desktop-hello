@@ -5,17 +5,17 @@
 <h1 align="center">Desktop Hello</h1>
 
 <p align="center">
-  <a href="https://github.com/polytrack114514/desktop-hello-/releases">
-    <img src="https://img.shields.io/github/v/release/polytrack114514/desktop-hello-?style=flat-square&label=version" alt="Release">
+  <a href="https://github.com/polytrack114514/desktop-hello/releases">
+    <img src="https://img.shields.io/github/v/release/polytrack114514/desktop-hello?style=flat-square&label=version" alt="Release">
   </a>
   <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
-  <a href="https://github.com/polytrack114514/desktop-hello-/releases">
-    <img src="https://img.shields.io/github/downloads/polytrack114514/desktop-hello-/total?style=flat-square&color=blue" alt="Downloads">
+  <a href="https://github.com/polytrack114514/desktop-hello/releases">
+    <img src="https://img.shields.io/github/downloads/polytrack114514/desktop-hello/total?style=flat-square&color=blue" alt="Downloads">
   </a>
-  <a href="https://github.com/polytrack114514/desktop-hello-/stargazers">
-    <img src="https://img.shields.io/github/stars/polytrack114514/desktop-hello-?style=flat-square&color=yellow" alt="Stars">
+  <a href="https://github.com/polytrack114514/desktop-hello/stargazers">
+    <img src="https://img.shields.io/github/stars/polytrack114514/desktop-hello?style=flat-square&color=yellow" alt="Stars">
   </a>
 </p>
 
@@ -36,27 +36,31 @@
 - 暗色 / 亮色模式切换
 - 透明度调节（30% - 100%）
 - 面板大小调节（50% - 100%）
+- 中英文语言切换
+- 面板显示当前时间（年月日时分秒）
+- 精简按键布局，去掉游戏不常用的符号键和右侧 Win/Menu/Ctrl
+- 启动不抢占焦点，不影响系统输入法状态
 - 系统托盘常驻，右键菜单操作
 - 设置自动保存，重启后恢复
 - 暗色卡片风格设置界面
 
 ### 下载
 
-前往 [Releases](https://github.com/polytrack114514/desktop-hello-/releases) 下载最新版本 `key-display.exe`，直接运行即可。
+前往 [Releases](https://github.com/polytrack114514/desktop-hello/releases) 下载最新版本 `key-display.exe`，直接运行即可。
 
 ### 使用方法
 
 1. 下载 `key-display.exe` 并运行
 2. 程序自动驻留系统托盘
 3. 右键托盘图标，选择「设置」进行个性化配置
-4. 在设置中调整透明度、面板大小和主题模式
+4. 在设置中调整透明度、面板大小、主题模式和语言
 
 ### 快捷菜单
 
 | 菜单项 | 功能 |
 |--------|------|
 | 设置 | 打开设置窗口 |
-| 前往官网 | 跳转 GitHub 仓库 |
+| GitHub 仓库 | 跳转 GitHub 仓库 |
 | 退出 | 关闭程序 |
 
 ### 技术栈
@@ -77,27 +81,31 @@ A lightweight Windows desktop key display tool for game streaming, tutorial reco
 - Dark / Light mode toggle
 - Opacity adjustment (30% - 100%)
 - Panel scale adjustment (50% - 100%)
+- Chinese / English language switch
+- Live clock display (date and time)
+- Simplified key layout — removed uncommon symbol keys and right-side Win/Menu/Ctrl
+- No focus stealing on launch — does not affect system IME state
 - System tray with right-click context menu
 - Auto-save settings, restored on restart
 - Dark card-style settings UI
 
 ### Download
 
-Go to [Releases](https://github.com/polytrack114514/desktop-hello-/releases) and download the latest `key-display.exe`. Run it directly.
+Go to [Releases](https://github.com/polytrack114514/desktop-hello/releases) and download the latest `key-display.exe`. Run it directly.
 
 ### Usage
 
 1. Download and run `key-display.exe`
 2. The app resides in the system tray
 3. Right-click the tray icon and select **Settings** to configure
-4. Adjust opacity, panel scale, and theme mode in settings
+4. Adjust opacity, panel scale, theme mode, and language in settings
 
 ### Context Menu
 
 | Menu Item | Action |
 |-----------|--------|
 | Settings | Open settings window |
-| Website | Open GitHub repository |
+| GitHub Repo | Open GitHub repository |
 | Exit | Quit the application |
 
 ### Tech Stack

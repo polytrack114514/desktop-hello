@@ -42,8 +42,8 @@ func trEn(s string) string {
 		return "Chinese"
 	case "英文":
 		return "English"
-	case "前往官网":
-		return "Website"
+	case "GitHub 仓库":
+		return "GitHub Repo"
 	case "退出":
 		return "Exit"
 	case "设置自动保存":
@@ -654,7 +654,7 @@ func showSettingsWindow() {
 
 func openWebsite() {
 	openStr := utf16Slice("open")
-	urlStr := utf16Slice("https://github.com/polytrack114514/desktop-hello-")
+	urlStr := utf16Slice("https://github.com/polytrack114514/desktop-hello")
 	procShellExecute.Call(0,
 		uintptr(unsafe.Pointer(&openStr[0])),
 		uintptr(unsafe.Pointer(&urlStr[0])),
