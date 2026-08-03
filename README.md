@@ -5,6 +5,10 @@
 <h1 align="center">Keypad Live</h1>
 
 <p align="center">
+  ⚠️ 项目已归档，作者不再更新
+</p>
+
+<p align="center">
   <a href="https://github.com/polytrack114514/desktop-hello/releases">
     <img src="https://img.shields.io/github/v/release/polytrack114514/desktop-hello?style=flat-square&label=version" alt="Release">
   </a>
@@ -20,7 +24,7 @@
 </p>
 
 <p align="center">
-  <a href="#中文">中文</a> | <a href="#english">English</a>
+  ⚠️ This project is archived. No further updates.
 </p>
 
 ---
